@@ -43,7 +43,7 @@ fn example(
     o.addPackagePath("zang", "src/zang.zig");
     o.addPackagePath("zang-12tet", "src/zang-12tet.zig");
     o.addPackagePath("zangscript", "src/zangscript.zig");
-    o.addBuildOption([]const u8, "example", "\"example_" ++ name ++ ".zig\"");
+    o.addBuildOption([]const u8, "example", "example_" ++ name ++ ".zig");
     o.linkSystemLibrary("SDL2");
     o.linkSystemLibrary("c");
     return o;
