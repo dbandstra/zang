@@ -160,7 +160,7 @@ fn createFile(stderr: *std.fs.File.OutStream, filename: []const u8) !std.fs.File
 fn mainInner(stderr: *std.fs.File.OutStream) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
-    var allocator = &gpa;
+    var allocator = &gpa.allocator;
 
     // parse command line options
     const maybe_options = try parseOptions(stderr, allocator);
