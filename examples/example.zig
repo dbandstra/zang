@@ -115,7 +115,7 @@ const Listener = struct {
         var from_addr: std.os.sockaddr_in = undefined;
         var from_addr_len: u32 = @sizeOf(@TypeOf(from_addr));
 
-        const num_bytes = std.os.recvfrom(self.socket, &buf, buf.len, @ptrCast(*std.os.sockaddr, &from_addr), &from_addr_len) catch |err| blk: {
+        const num_bytes = std.os.recvfrom(self.socket, &buf, buf.len, @ptrCast(*std.os.sockaddr, &from_addr), &from_addr_len) catch |err| {
             if (err == error.WouldBlock) {
                 return null;
             } else {

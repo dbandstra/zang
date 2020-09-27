@@ -158,10 +158,11 @@ fn createFile(stderr: *std.fs.File.OutStream, filename: []const u8) !std.fs.File
 }
 
 fn mainInner(stderr: *std.fs.File.OutStream) !void {
-    var leak_count_allocator = std.testing.LeakCountAllocator.init(std.heap.page_allocator);
-    defer leak_count_allocator.validate() catch {};
-
-    var allocator = &leak_count_allocator.allocator;
+    // FIXME - what happened to LeakCountAllocator? it's gone now
+    //var leak_count_allocator = std.testing.LeakCountAllocator.init(std.heap.page_allocator);
+    //defer leak_count_allocator.validate() catch {};
+    //var allocator = &leak_count_allocator.allocator;
+    var allocator = std.heap.page_allocator;
 
     // parse command line options
     const maybe_options = try parseOptions(stderr, allocator);

@@ -13,14 +13,14 @@ const BuiltinParser = struct {
     }
 
     fn parseIntLiteral(self: BuiltinParser, var_decl: *const std.zig.ast.Node.VarDecl) ?usize {
-        const init_node = var_decl.getTrailer("init_node") orelse return null;
-        const lit = init_node.cast(std.zig.ast.Node.IntegerLiteral) orelse return null;
+        const init_node = var_decl.getInitNode() orelse return null;
+        const lit = init_node.castTag(.IntegerLiteral) orelse return null;
         return std.fmt.parseInt(usize, self.getToken(lit.token), 10) catch return null;
     }
 
     // `one_of` (enums) not supported
     fn parseParamType(self: BuiltinParser, type_expr: *std.zig.ast.Node) ?zangscript.ParamType {
-        if (type_expr.cast(std.zig.ast.Node.Identifier)) |identifier| {
+        if (type_expr.castTag(.Identifier)) |identifier| {
             const type_name = self.getToken(identifier.token);
             if (std.mem.eql(u8, type_name, "bool")) {
                 return .boolean;
@@ -30,7 +30,7 @@ const BuiltinParser = struct {
             }
         } else if (type_expr.cast(std.zig.ast.Node.SliceType)) |st| {
             if (st.ptr_info.const_token != null and st.ptr_info.allowzero_token == null and st.ptr_info.sentinel == null) {
-                if (st.rhs.cast(std.zig.ast.Node.Identifier)) |rhs_identifier| {
+                if (st.rhs.castTag(.Identifier)) |rhs_identifier| {
                     const type_name = self.getToken(rhs_identifier.token);
                     if (std.mem.eql(u8, type_name, "f32")) {
                         return .buffer;
@@ -38,9 +38,9 @@ const BuiltinParser = struct {
                 }
             }
         } else if (type_expr.cast(std.zig.ast.Node.SimpleInfixOp)) |infix_op| {
-            if (infix_op.lhs.cast(std.zig.ast.Node.Identifier)) |lhs_identifier| {
+            if (infix_op.lhs.castTag(.Identifier)) |lhs_identifier| {
                 if (std.mem.eql(u8, self.getToken(lhs_identifier.token), "zang") and infix_op.base.tag == .Period) {
-                    if (infix_op.rhs.cast(std.zig.ast.Node.Identifier)) |rhs_identifier| {
+                    if (infix_op.rhs.castTag(.Identifier)) |rhs_identifier| {
                         if (std.mem.eql(u8, self.getToken(rhs_identifier.token), "ConstantOrBuffer")) {
                             return .constant_or_buffer;
                         }
@@ -52,7 +52,7 @@ const BuiltinParser = struct {
     }
 
     fn parseParams(self: BuiltinParser, stderr: *std.fs.File.OutStream, var_decl: *const std.zig.ast.Node.VarDecl) ![]const zangscript.ModuleParam {
-        const init_node = var_decl.getTrailer("init_node") orelse {
+        const init_node = var_decl.getInitNode() orelse {
             try stderr.print("expected init node\n", .{});
             return error.Failed;
         };
@@ -87,7 +87,7 @@ const BuiltinParser = struct {
 
     fn parseTopLevelDecl(self: BuiltinParser, stderr: *std.fs.File.OutStream, var_decl: *std.zig.ast.Node.VarDecl) !?zangscript.BuiltinModule {
         // TODO check for `pub`, and initial uppercase
-        const init_node = var_decl.getTrailer("init_node") orelse return null;
+        const init_node = var_decl.getInitNode() orelse return null;
         const container_decl = init_node.cast(std.zig.ast.Node.ContainerDecl) orelse return null;
 
         const name = self.getToken(var_decl.name_token);
