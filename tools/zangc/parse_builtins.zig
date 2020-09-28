@@ -28,7 +28,7 @@ const BuiltinParser = struct {
             if (std.mem.eql(u8, type_name, "f32")) {
                 return .constant;
             }
-        } else if (type_expr.cast(std.zig.ast.Node.SliceType)) |st| {
+        } else if (type_expr.castTag(.SliceType)) |st| {
             if (st.ptr_info.const_token != null and st.ptr_info.allowzero_token == null and st.ptr_info.sentinel == null) {
                 if (st.rhs.castTag(.Identifier)) |rhs_identifier| {
                     const type_name = self.getToken(rhs_identifier.token);
@@ -37,9 +37,9 @@ const BuiltinParser = struct {
                     }
                 }
             }
-        } else if (type_expr.cast(std.zig.ast.Node.SimpleInfixOp)) |infix_op| {
+        } else if (type_expr.castTag(.Period)) |infix_op| {
             if (infix_op.lhs.castTag(.Identifier)) |lhs_identifier| {
-                if (std.mem.eql(u8, self.getToken(lhs_identifier.token), "zang") and infix_op.base.tag == .Period) {
+                if (std.mem.eql(u8, self.getToken(lhs_identifier.token), "zang")) {
                     if (infix_op.rhs.castTag(.Identifier)) |rhs_identifier| {
                         if (std.mem.eql(u8, self.getToken(rhs_identifier.token), "ConstantOrBuffer")) {
                             return .constant_or_buffer;
@@ -56,7 +56,7 @@ const BuiltinParser = struct {
             try stderr.print("expected init node\n", .{});
             return error.Failed;
         };
-        const container_decl = init_node.cast(std.zig.ast.Node.ContainerDecl) orelse {
+        const container_decl = init_node.castTag(.ContainerDecl) orelse {
             try stderr.print("expected container decl\n", .{});
             return error.Failed;
         };
@@ -64,7 +64,7 @@ const BuiltinParser = struct {
         var params = std.ArrayList(zangscript.ModuleParam).init(self.arena_allocator);
 
         for (container_decl.fieldsAndDeclsConst()) |node_ptr| {
-            const field = node_ptr.*.cast(std.zig.ast.Node.ContainerField) orelse continue;
+            const field = node_ptr.*.castTag(.ContainerField) orelse continue;
             const name = self.getToken(field.name_token);
             const type_expr = field.type_expr orelse {
                 try stderr.print("expected type expr\n", .{});
@@ -86,7 +86,7 @@ const BuiltinParser = struct {
     fn parseTopLevelDecl(self: BuiltinParser, stderr: *std.fs.File.OutStream, var_decl: *std.zig.ast.Node.VarDecl) !?zangscript.BuiltinModule {
         // TODO check for `pub`, and initial uppercase
         const init_node = var_decl.getInitNode() orelse return null;
-        const container_decl = init_node.cast(std.zig.ast.Node.ContainerDecl) orelse return null;
+        const container_decl = init_node.castTag(.ContainerDecl) orelse return null;
 
         const name = self.getToken(var_decl.name_token);
 
@@ -95,7 +95,7 @@ const BuiltinParser = struct {
         var params: ?[]const zangscript.ModuleParam = null;
 
         for (container_decl.fieldsAndDeclsConst()) |node_ptr| {
-            const var_decl2 = node_ptr.*.cast(std.zig.ast.Node.VarDecl) orelse continue;
+            const var_decl2 = node_ptr.*.castTag(.VarDecl) orelse continue;
             const name2 = self.getToken(var_decl2.name_token);
             if (std.mem.eql(u8, name2, "num_outputs")) {
                 num_outputs = self.parseIntLiteral(var_decl2) orelse {
@@ -169,7 +169,7 @@ pub fn parseBuiltins(
 
     // decls is a bound function now.
     for (tree.root_node.declsConst()) |node_ptr| {
-        const var_decl = node_ptr.*.cast(std.zig.ast.Node.VarDecl) orelse continue;
+        const var_decl = node_ptr.*.castTag(.VarDecl) orelse continue;
         if (try bp.parseTopLevelDecl(stderr, var_decl)) |builtin| {
             try builtins.append(builtin);
         }
