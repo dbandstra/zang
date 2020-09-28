@@ -64,7 +64,7 @@ const BuiltinParser = struct {
         var params = std.ArrayList(zangscript.ModuleParam).init(self.arena_allocator);
 
         for (container_decl.fieldsAndDeclsConst()) |node_ptr| {
-            const field = node_ptr.*.castTag(.ContainerField) orelse continue;
+            const field = node_ptr.castTag(.ContainerField) orelse continue;
             const name = self.getToken(field.name_token);
             const type_expr = field.type_expr orelse {
                 try stderr.print("expected type expr\n", .{});
@@ -95,7 +95,7 @@ const BuiltinParser = struct {
         var params: ?[]const zangscript.ModuleParam = null;
 
         for (container_decl.fieldsAndDeclsConst()) |node_ptr| {
-            const var_decl2 = node_ptr.*.castTag(.VarDecl) orelse continue;
+            const var_decl2 = node_ptr.castTag(.VarDecl) orelse continue;
             const name2 = self.getToken(var_decl2.name_token);
             if (std.mem.eql(u8, name2, "num_outputs")) {
                 num_outputs = self.parseIntLiteral(var_decl2) orelse {
@@ -169,7 +169,7 @@ pub fn parseBuiltins(
 
     // decls is a bound function now.
     for (tree.root_node.declsConst()) |node_ptr| {
-        const var_decl = node_ptr.*.castTag(.VarDecl) orelse continue;
+        const var_decl = node_ptr.castTag(.VarDecl) orelse continue;
         if (try bp.parseTopLevelDecl(stderr, var_decl)) |builtin| {
             try builtins.append(builtin);
         }
