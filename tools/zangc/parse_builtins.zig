@@ -167,7 +167,6 @@ pub fn parseBuiltins(
         .tree = tree,
     };
 
-    // decls is a bound function now.
     for (tree.root_node.declsConst()) |node_ptr| {
         const var_decl = node_ptr.castTag(.VarDecl) orelse continue;
         if (try bp.parseTopLevelDecl(stderr, var_decl)) |builtin| {
