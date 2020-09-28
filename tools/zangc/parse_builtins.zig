@@ -63,8 +63,6 @@ const BuiltinParser = struct {
 
         var params = std.ArrayList(zangscript.ModuleParam).init(self.arena_allocator);
 
-        //var it = container_decl.fields_and_decls.iterator(0);
-        //while (it.next()) |node_ptr| {
         for (container_decl.fieldsAndDeclsConst()) |node_ptr| {
             const field = node_ptr.*.cast(std.zig.ast.Node.ContainerField) orelse continue;
             const name = self.getToken(field.name_token);
@@ -96,8 +94,6 @@ const BuiltinParser = struct {
         var num_temps: ?usize = null;
         var params: ?[]const zangscript.ModuleParam = null;
 
-        //var it = container_decl.fields_and_decls.iterator(0);
-        //while (it.next()) |node_ptr| {
         for (container_decl.fieldsAndDeclsConst()) |node_ptr| {
             const var_decl2 = node_ptr.*.cast(std.zig.ast.Node.VarDecl) orelse continue;
             const name2 = self.getToken(var_decl2.name_token);
@@ -146,9 +142,7 @@ pub fn parseBuiltins(
 
     if (tree.errors.len > 0) {
         try stderr.print("parse error in {}\n", .{filename});
-        //var it = tree.errors.iterator(0);
         for (tree.errors) |err| {
-            //while (it.next()) |err| {
             const token_loc = tree.token_locs[err.loc()];
             var line: usize = 1;
             var col: usize = 1;
@@ -174,8 +168,6 @@ pub fn parseBuiltins(
     };
 
     // decls is a bound function now.
-    //var it = tree.root_node.decls.iterator(0);
-    //while (it.next()) |node_ptr| {
     for (tree.root_node.declsConst()) |node_ptr| {
         const var_decl = node_ptr.*.cast(std.zig.ast.Node.VarDecl) orelse continue;
         if (try bp.parseTopLevelDecl(stderr, var_decl)) |builtin| {
