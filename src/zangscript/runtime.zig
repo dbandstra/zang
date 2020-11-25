@@ -94,7 +94,7 @@ pub const Value = union(enum) {
     }
 
     // turn a zig value into a Value
-    fn fromZig(param_type: ParamType, zig_value: var) ?Value {
+    fn fromZig(param_type: ParamType, zig_value: anytype) ?Value {
         switch (param_type) {
             .boolean => if (@TypeOf(zig_value) == bool) return Value{ .boolean = zig_value },
             .buffer => if (@TypeOf(zig_value) == []const f32) return Value{ .buffer = zig_value },
@@ -129,7 +129,7 @@ pub const Value = union(enum) {
         return null;
     }
 
-    fn payloadFromZig(bev: BuiltinEnumValue, zig_payload: var) ?Value {
+    fn payloadFromZig(bev: BuiltinEnumValue, zig_payload: anytype) ?Value {
         switch (bev.payload_type) {
             .none => {
                 if (@TypeOf(zig_payload) == void) {

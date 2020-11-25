@@ -40,8 +40,12 @@ pub const Envelope = struct {
             self.changeState(.attack);
         }
 
-        std.debug.assert(self.state != .idle);
         std.debug.assert(self.state != .release);
+
+        // this condition can be hit by example_two.zig if you mash the keyboard
+        if (self.state == .idle) {
+            self.changeState(.attack);
+        }
 
         if (self.state == .attack) {
             if (self.painter.paintToward(&ps, p.attack, 1.0)) {

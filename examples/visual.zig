@@ -174,7 +174,7 @@ fn makeVTable(comptime T: type) VTable {
             .offset = blk: {
                 inline for (@typeInfo(T).Struct.fields) |field| {
                     if (comptime std.mem.eql(u8, field.name, "vtable")) {
-                        break :blk field.offset.?;
+                        break :blk @byteOffsetOf(T, field.name);
                     }
                 }
                 @compileError("missing vtable field");
@@ -858,7 +858,7 @@ pub const Visuals = struct {
         }
     }
 
-    fn addWidget(self: *Visuals, inew: var) !void {
+    fn addWidget(self: *Visuals, inew: anytype) !void {
         var instance = try inew;
         self.widgets.append(&instance.vtable) catch |err| {
             instance.del(self.allocator);

@@ -19,7 +19,7 @@ pub const PrintHelper = struct {
         std.debug.assert(self.indentation == 0);
     }
 
-    pub fn print(self: *PrintHelper, outer_self: var, comptime fmt: []const u8, args: var) !void {
+    pub fn print(self: *PrintHelper, outer_self: anytype, comptime fmt: []const u8, args: anytype) !void {
         if (self.indent_next) {
             self.indent_next = false;
             if (fmt.len > 0 and fmt[0] == '}') {

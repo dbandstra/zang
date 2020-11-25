@@ -153,7 +153,7 @@ pub const Tokenizer = struct {
     }
 
     // use this for requiring the next token to be a specific symbol or keyword
-    pub fn expectNext(self: *Tokenizer, tt: var) !void {
+    pub fn expectNext(self: *Tokenizer, tt: anytype) !void {
         const token = try self.next();
         if (token.tt == tt) return;
         const desc = if (comptime std.mem.startsWith(u8, @tagName(tt), "sym_"))

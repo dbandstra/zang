@@ -223,8 +223,10 @@ fn doParse(parser: *Parser) !void {
                         std.sort.sort(
                             zang.Notes(MyNoteParams).SongEvent,
                             all_notes_arr[i][start..end],
+                            {},
                             struct {
                                 fn compare(
+                                    context: void,
                                     a: zang.Notes(MyNoteParams).SongEvent,
                                     b: zang.Notes(MyNoteParams).SongEvent,
                                 ) bool {

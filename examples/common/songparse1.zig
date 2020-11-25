@@ -13,7 +13,7 @@ pub fn Parser(comptime num_columns: usize) type {
             number: f32,
             notes: [num_columns]Note,
 
-            fn isWord(token: Token, word: []const u8) bool {
+            pub fn isWord(token: Token, word: []const u8) bool {
                 return switch (token) {
                     .word => |s| std.mem.eql(u8, word, s),
                     else => false,
@@ -35,11 +35,10 @@ pub fn Parser(comptime num_columns: usize) type {
             const modifier = parser.contents[parser.index + 1];
             const octave = parser.contents[parser.index + 2];
 
-            const offset =
-                if (octave >= '0' and octave <= '9')
-                    @intCast(i32, octave - '0') * 12 - 57
-                else
-                    return null;
+            const offset = if (octave >= '0' and octave <= '9')
+                @intCast(i32, octave - '0') * 12 - 57
+            else
+                return null;
 
             const semitone: i32 = blk: {
                 if (letter == 'C' and modifier == '-') break :blk 0;
@@ -102,7 +101,8 @@ pub fn Parser(comptime num_columns: usize) type {
 
                 var notes = [1]Note{.idle} ** num_columns;
 
-                var col: usize = 0; while (true) : (col += 1) {
+                var col: usize = 0;
+                while (true) : (col += 1) {
                     if (col >= num_columns) {
                         return error.SyntaxError;
                     }
@@ -119,7 +119,8 @@ pub fn Parser(comptime num_columns: usize) type {
 
                     if (parser.index < parser.contents.len and
                         (parser.contents[parser.index] == ' ' or
-                            parser.contents[parser.index] == '|')) {
+                        parser.contents[parser.index] == '|'))
+                    {
                         parser.index += 1;
                     } else {
                         break;
@@ -135,28 +136,26 @@ pub fn Parser(comptime num_columns: usize) type {
                     }
                 }
 
-                return Token { .notes = notes };
+                return Token{ .notes = notes };
             }
 
-            if (
-                (ch >= 'a' and ch <= 'z') or
-                (ch >= 'A' and ch <= 'Z') or ch == '_'
-            ) {
+            if ((ch >= 'a' and ch <= 'z') or
+                (ch >= 'A' and ch <= 'Z') or ch == '_')
+            {
                 const start = parser.index;
                 parser.index += 1;
                 while (parser.index < parser.contents.len) {
                     const ch2 = parser.contents[parser.index];
-                    if (
-                        (ch2 >= 'a' and ch2 <= 'z') or
+                    if ((ch2 >= 'a' and ch2 <= 'z') or
                         (ch2 >= 'A' and ch2 <= 'Z') or
-                        (ch2 >= '0' and ch2 <= '9') or ch2 == '_'
-                    ) {
+                        (ch2 >= '0' and ch2 <= '9') or ch2 == '_')
+                    {
                         parser.index += 1;
                     } else {
                         break;
                     }
                 }
-                return Token { .word = parser.contents[start..parser.index] };
+                return Token{ .word = parser.contents[start..parser.index] };
             }
 
             if (ch >= '0' and ch <= '9') {
@@ -178,9 +177,8 @@ pub fn Parser(comptime num_columns: usize) type {
                         break;
                     }
                 }
-                const number = try std.fmt.parseFloat(f32,
-                    parser.contents[start..parser.index]);
-                return Token { .number = number };
+                const number = try std.fmt.parseFloat(f32, parser.contents[start..parser.index]);
+                return Token{ .number = number };
             }
 
             return error.SyntaxError;
@@ -190,7 +188,7 @@ pub fn Parser(comptime num_columns: usize) type {
             return (try parser.parseToken()) orelse error.UnexpectedEof;
         }
 
-        fn requireNumber(parser: *@This()) !f32 {
+        pub fn requireNumber(parser: *@This()) !f32 {
             return switch (try parser.requireToken()) {
                 .number => |n| n,
                 else => error.ExpectedNumber,

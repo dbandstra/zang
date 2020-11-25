@@ -8,19 +8,19 @@ const BuiltinParser = struct {
     tree: *std.zig.ast.Tree,
 
     fn getToken(self: BuiltinParser, token_index: usize) []const u8 {
-        const token = self.tree.tokens.at(token_index);
-        return self.contents[token.start..token.end];
+        const token_loc = self.tree.token_locs[token_index];
+        return self.contents[token_loc.start..token_loc.end];
     }
 
     fn parseIntLiteral(self: BuiltinParser, var_decl: *const std.zig.ast.Node.VarDecl) ?usize {
-        const init_node = var_decl.init_node orelse return null;
-        const lit = init_node.cast(std.zig.ast.Node.IntegerLiteral) orelse return null;
+        const init_node = var_decl.getInitNode() orelse return null;
+        const lit = init_node.castTag(.IntegerLiteral) orelse return null;
         return std.fmt.parseInt(usize, self.getToken(lit.token), 10) catch return null;
     }
 
     // `one_of` (enums) not supported
     fn parseParamType(self: BuiltinParser, type_expr: *std.zig.ast.Node) ?zangscript.ParamType {
-        if (type_expr.cast(std.zig.ast.Node.Identifier)) |identifier| {
+        if (type_expr.castTag(.Identifier)) |identifier| {
             const type_name = self.getToken(identifier.token);
             if (std.mem.eql(u8, type_name, "bool")) {
                 return .boolean;
@@ -28,24 +28,19 @@ const BuiltinParser = struct {
             if (std.mem.eql(u8, type_name, "f32")) {
                 return .constant;
             }
-        } else if (type_expr.cast(std.zig.ast.Node.PrefixOp)) |prefix_op| {
-            switch (prefix_op.op) {
-                .SliceType => |st| {
-                    if (st.const_token != null and st.allowzero_token == null and st.sentinel == null) {
-                        if (prefix_op.rhs.cast(std.zig.ast.Node.Identifier)) |rhs_identifier| {
-                            const type_name = self.getToken(rhs_identifier.token);
-                            if (std.mem.eql(u8, type_name, "f32")) {
-                                return .buffer;
-                            }
-                        }
+        } else if (type_expr.castTag(.SliceType)) |st| {
+            if (st.ptr_info.const_token != null and st.ptr_info.allowzero_token == null and st.ptr_info.sentinel == null) {
+                if (st.rhs.castTag(.Identifier)) |rhs_identifier| {
+                    const type_name = self.getToken(rhs_identifier.token);
+                    if (std.mem.eql(u8, type_name, "f32")) {
+                        return .buffer;
                     }
-                },
-                else => {},
+                }
             }
-        } else if (type_expr.cast(std.zig.ast.Node.InfixOp)) |infix_op| {
-            if (infix_op.lhs.cast(std.zig.ast.Node.Identifier)) |lhs_identifier| {
-                if (std.mem.eql(u8, self.getToken(lhs_identifier.token), "zang") and infix_op.op == .Period) {
-                    if (infix_op.rhs.cast(std.zig.ast.Node.Identifier)) |rhs_identifier| {
+        } else if (type_expr.castTag(.Period)) |infix_op| {
+            if (infix_op.lhs.castTag(.Identifier)) |lhs_identifier| {
+                if (std.mem.eql(u8, self.getToken(lhs_identifier.token), "zang")) {
+                    if (infix_op.rhs.castTag(.Identifier)) |rhs_identifier| {
                         if (std.mem.eql(u8, self.getToken(rhs_identifier.token), "ConstantOrBuffer")) {
                             return .constant_or_buffer;
                         }
@@ -57,20 +52,19 @@ const BuiltinParser = struct {
     }
 
     fn parseParams(self: BuiltinParser, stderr: *std.fs.File.OutStream, var_decl: *const std.zig.ast.Node.VarDecl) ![]const zangscript.ModuleParam {
-        const init_node = var_decl.init_node orelse {
+        const init_node = var_decl.getInitNode() orelse {
             try stderr.print("expected init node\n", .{});
             return error.Failed;
         };
-        const container_decl = init_node.cast(std.zig.ast.Node.ContainerDecl) orelse {
+        const container_decl = init_node.castTag(.ContainerDecl) orelse {
             try stderr.print("expected container decl\n", .{});
             return error.Failed;
         };
 
         var params = std.ArrayList(zangscript.ModuleParam).init(self.arena_allocator);
 
-        var it = container_decl.fields_and_decls.iterator(0);
-        while (it.next()) |node_ptr| {
-            const field = node_ptr.*.cast(std.zig.ast.Node.ContainerField) orelse continue;
+        for (container_decl.fieldsAndDeclsConst()) |node_ptr| {
+            const field = node_ptr.castTag(.ContainerField) orelse continue;
             const name = self.getToken(field.name_token);
             const type_expr = field.type_expr orelse {
                 try stderr.print("expected type expr\n", .{});
@@ -91,8 +85,8 @@ const BuiltinParser = struct {
 
     fn parseTopLevelDecl(self: BuiltinParser, stderr: *std.fs.File.OutStream, var_decl: *std.zig.ast.Node.VarDecl) !?zangscript.BuiltinModule {
         // TODO check for `pub`, and initial uppercase
-        const init_node = var_decl.init_node orelse return null;
-        const container_decl = init_node.cast(std.zig.ast.Node.ContainerDecl) orelse return null;
+        const init_node = var_decl.getInitNode() orelse return null;
+        const container_decl = init_node.castTag(.ContainerDecl) orelse return null;
 
         const name = self.getToken(var_decl.name_token);
 
@@ -100,9 +94,8 @@ const BuiltinParser = struct {
         var num_temps: ?usize = null;
         var params: ?[]const zangscript.ModuleParam = null;
 
-        var it = container_decl.fields_and_decls.iterator(0);
-        while (it.next()) |node_ptr| {
-            const var_decl2 = node_ptr.*.cast(std.zig.ast.Node.VarDecl) orelse continue;
+        for (container_decl.fieldsAndDeclsConst()) |node_ptr| {
+            const var_decl2 = node_ptr.castTag(.VarDecl) orelse continue;
             const name2 = self.getToken(var_decl2.name_token);
             if (std.mem.eql(u8, name2, "num_outputs")) {
                 num_outputs = self.parseIntLiteral(var_decl2) orelse {
@@ -147,14 +140,13 @@ pub fn parseBuiltins(
     };
     defer tree.deinit();
 
-    if (tree.errors.count() > 0) {
+    if (tree.errors.len > 0) {
         try stderr.print("parse error in {}\n", .{filename});
-        var it = tree.errors.iterator(0);
-        while (it.next()) |err| {
-            const token = tree.tokens.at(err.loc());
+        for (tree.errors) |err| {
+            const token_loc = tree.token_locs[err.loc()];
             var line: usize = 1;
             var col: usize = 1;
-            for (contents[0..token.start]) |ch| {
+            for (contents[0..token_loc.start]) |ch| {
                 if (ch == '\n') {
                     line += 1;
                     col = 1;
@@ -163,7 +155,7 @@ pub fn parseBuiltins(
                 }
             }
             try stderr.print("(line {}, col {}) ", .{ line, col });
-            try err.render(&tree.tokens, stderr);
+            try err.render(tree.token_ids, stderr);
             try stderr.writeAll("\n");
         }
         return error.Failed;
@@ -175,9 +167,8 @@ pub fn parseBuiltins(
         .tree = tree,
     };
 
-    var it = tree.root_node.decls.iterator(0);
-    while (it.next()) |node_ptr| {
-        const var_decl = node_ptr.*.cast(std.zig.ast.Node.VarDecl) orelse continue;
+    for (tree.root_node.declsConst()) |node_ptr| {
+        const var_decl = node_ptr.castTag(.VarDecl) orelse continue;
         if (try bp.parseTopLevelDecl(stderr, var_decl)) |builtin| {
             try builtins.append(builtin);
         }

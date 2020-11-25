@@ -13,11 +13,11 @@ const State = struct {
     module: Module,
     helper: PrintHelper,
 
-    pub fn print(self: *State, comptime fmt: []const u8, args: var) !void {
+    pub fn print(self: *State, comptime fmt: []const u8, args: anytype) !void {
         try self.helper.print(self, fmt, args);
     }
 
-    pub fn printArgValue(self: *State, comptime arg_format: []const u8, arg: var) !void {
+    pub fn printArgValue(self: *State, comptime arg_format: []const u8, arg: anytype) !void {
         @compileError("unknown arg_format: \"" ++ arg_format ++ "\"");
     }
 

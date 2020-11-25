@@ -1,5 +1,5 @@
 # zang
-Audio library written in [Zig](https://ziglang.org/) 0.6.0.
+Audio library written in [Zig](https://ziglang.org/) 0.7.0.
 
 This library provides functions to "paint" audio (generators and effects) into buffers. (How the buffers get sent to the audio device is out of the scope of the library, but can be seen in the provided examples.)
 

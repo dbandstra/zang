@@ -19,11 +19,11 @@ const State = struct {
     module: ?Module,
     helper: PrintHelper,
 
-    pub fn print(self: *State, comptime fmt: []const u8, args: var) !void {
+    pub fn print(self: *State, comptime fmt: []const u8, args: anytype) !void {
         try self.helper.print(self, fmt, args);
     }
 
-    pub fn printArgValue(self: *State, comptime arg_format: []const u8, arg: var) !void {
+    pub fn printArgValue(self: *State, comptime arg_format: []const u8, arg: anytype) !void {
         if (comptime std.mem.eql(u8, arg_format, "identifier")) {
             try self.printIdentifier(arg);
         } else if (comptime std.mem.eql(u8, arg_format, "module_name")) {

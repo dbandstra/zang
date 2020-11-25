@@ -20,12 +20,13 @@ pub fn readFile(buffer: []u8) ![]const u8 {
 // like `arr[0..new_size]`, but working with arrays of comptime known length
 // (and actually copying data)
 pub fn subarray(
-    arr: var,
+    arr: anytype,
     comptime new_size: usize,
 ) [new_size]@typeInfo(@TypeOf(arr)).Array.child {
     std.debug.assert(new_size <= @typeInfo(@TypeOf(arr)).Array.len);
     var result: [new_size]@typeInfo(@TypeOf(arr)).Array.child = undefined;
-    var i: usize = 0; while (i < new_size) : (i += 1) {
+    var i: usize = 0;
+    while (i < new_size) : (i += 1) {
         result[i] = arr[i];
     }
     return result;

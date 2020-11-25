@@ -72,7 +72,7 @@ const OptionsParser = struct {
         return value;
     }
 
-    fn argError(self: OptionsParser, comptime fmt: []const u8, args: var) error{ArgError} {
+    fn argError(self: OptionsParser, comptime fmt: []const u8, args: anytype) error{ArgError} {
         self.stderr.print("{}: ", .{self.program}) catch {};
         self.stderr.print(fmt, args) catch {};
         self.stderr.print("Try '{} --help' for more information.\n", .{self.program}) catch {};
@@ -158,10 +158,9 @@ fn createFile(stderr: *std.fs.File.OutStream, filename: []const u8) !std.fs.File
 }
 
 fn mainInner(stderr: *std.fs.File.OutStream) !void {
-    var leak_count_allocator = std.testing.LeakCountAllocator.init(std.heap.page_allocator);
-    defer leak_count_allocator.validate() catch {};
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
-    var allocator = &leak_count_allocator.allocator;
+    var allocator = &gpa.allocator;
 
     // parse command line options
     const maybe_options = try parseOptions(stderr, allocator);
@@ -270,8 +269,8 @@ fn mainInner(stderr: *std.fs.File.OutStream) !void {
 }
 
 pub fn main() u8 {
-    var stderr = std.debug.getStderrStream();
-    mainInner(stderr) catch |err| {
+    var stderr = std.io.getStdErr().writer();
+    mainInner(&stderr) catch |err| {
         // Failed or ArgError means a message has already been printed
         if (err != error.Failed and err != error.ArgError) {
             stderr.print("failed: {}\n", .{err}) catch {};

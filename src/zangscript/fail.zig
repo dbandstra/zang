@@ -7,7 +7,7 @@ fn printSourceRange(out: std.io.StreamSource.OutStream, contents: []const u8, so
     try out.writeAll(contents[source_range.loc0.index..source_range.loc1.index]);
 }
 
-fn printErrorMessage(out: std.io.StreamSource.OutStream, maybe_source_range: ?SourceRange, contents: []const u8, comptime fmt: []const u8, args: var) !void {
+fn printErrorMessage(out: std.io.StreamSource.OutStream, maybe_source_range: ?SourceRange, contents: []const u8, comptime fmt: []const u8, args: anytype) !void {
     comptime var arg_index: usize = 0;
     inline for (fmt) |ch| {
         if (ch == '%') {
@@ -45,7 +45,7 @@ fn printErrorMessage(out: std.io.StreamSource.OutStream, maybe_source_range: ?So
     }
 }
 
-fn printError(ctx: Context, maybe_source_range: ?SourceRange, comptime fmt: []const u8, args: var) !void {
+fn printError(ctx: Context, maybe_source_range: ?SourceRange, comptime fmt: []const u8, args: anytype) !void {
     const KNRM = if (ctx.errors_color) "\x1B[0m" else "";
     const KBOLD = if (ctx.errors_color) "\x1B[1m" else "";
     const KRED = if (ctx.errors_color) "\x1B[31m" else "";
@@ -111,7 +111,7 @@ fn printError(ctx: Context, maybe_source_range: ?SourceRange, comptime fmt: []co
     try out.print("{}\n", .{KNRM});
 }
 
-pub fn fail(ctx: Context, maybe_source_range: ?SourceRange, comptime fmt: []const u8, args: var) error{Failed} {
+pub fn fail(ctx: Context, maybe_source_range: ?SourceRange, comptime fmt: []const u8, args: anytype) error{Failed} {
     printError(ctx, maybe_source_range, fmt, args) catch {};
     return error.Failed;
 }
