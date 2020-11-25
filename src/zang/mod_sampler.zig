@@ -26,7 +26,7 @@ fn decodeSigned(
     slice: []const u8,
     index: usize,
 ) f32 {
-    const T = std.meta.IntType(true, byte_count * 8);
+    const T = std.meta.IntType(.signed, byte_count * 8);
     const subslice = slice[index * byte_count .. (index + 1) * byte_count];
     const sval = std.mem.readIntSliceLittle(T, subslice);
     const max = 1 << @as(u32, byte_count * 8 - 1);
@@ -40,8 +40,7 @@ fn getSample(params: Sampler.Params, index1: i32) f32 {
         .signed24_lsb => 3,
         .signed32_lsb => 4,
     };
-    const num_samples = @intCast(i32,
-        params.sample.data.len / bytes_per_sample / params.sample.num_channels);
+    const num_samples = @intCast(i32, params.sample.data.len / bytes_per_sample / params.sample.num_channels);
     const index = if (params.loop) @mod(index1, num_samples) else index1;
 
     if (index >= 0 and index < num_samples) {
@@ -49,8 +48,7 @@ fn getSample(params: Sampler.Params, index1: i32) f32 {
             params.channel;
 
         return switch (params.sample.format) {
-            .unsigned8 =>
-                (@intToFloat(f32, params.sample.data[i]) - 127.5) / 127.5,
+            .unsigned8 => (@intToFloat(f32, params.sample.data[i]) - 127.5) / 127.5,
             .signed16_lsb => decodeSigned(2, params.sample.data, i),
             .signed24_lsb => decodeSigned(3, params.sample.data, i),
             .signed32_lsb => decodeSigned(4, params.sample.data, i),
@@ -96,8 +94,7 @@ pub const Sampler = struct {
 
         const out = outputs[0][span.start..span.end];
 
-        const ratio =
-            @intToFloat(f32, params.sample.sample_rate) / params.sample_rate;
+        const ratio = @intToFloat(f32, params.sample.sample_rate) / params.sample_rate;
 
         if (ratio < 0.0 and !params.loop) {
             // i don't think it makes sense to play backwards without looping
@@ -109,14 +106,16 @@ pub const Sampler = struct {
             // no resampling needed
             const t = @floatToInt(i32, std.math.round(self.t));
 
-            var i: u31 = 0; while (i < out.len) : (i += 1) {
+            var i: u31 = 0;
+            while (i < out.len) : (i += 1) {
                 out[i] += getSample(params, t + @as(i32, i));
             }
 
             self.t += @intToFloat(f32, out.len);
         } else {
             // resample
-            var i: u31 = 0; while (i < out.len) : (i += 1) {
+            var i: u31 = 0;
+            while (i < out.len) : (i += 1) {
                 const t0 = @floatToInt(i32, std.math.floor(self.t));
                 const t1 = t0 + 1;
                 const tfrac = @intToFloat(f32, t1) - self.t;
