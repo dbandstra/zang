@@ -12,6 +12,8 @@ Running the examples (again, except `write_wav`) will display a window with some
 
 Before building the examples, you will need to initialize git submodules, as some of the examples use an external dependency ([zig-wav](https://git.sr.ht/~dbandstra/zig-wav)).
 
+*Note*: You may have to clear the `zig-cache` folder in between building different examples. This bug will be fixed in Zig 0.7.1.
+
 ```
 git submodule init
 git submodule update
