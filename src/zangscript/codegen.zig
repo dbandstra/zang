@@ -26,14 +26,19 @@ const printBytecode = @import("codegen_print.zig").printBytecode;
 
 pub const TempRef = struct {
     index: usize, // temp index
-    is_weak: bool, // if true, someone else owns the temp, so don't release it
+    // is_weak should be a bool, but an outstanding compiler (or LLVM?) bug
+    // causes corrupted runtime behavior in release builds. making the field
+    // a u8 avoids the bug, for not entirely understood reasons. see:
+    //   * https://todo.sr.ht/~dbandstra/zang/24
+    //   * https://github.com/ziglang/zig/issues/7325
+    is_weak: u8, // if true, someone else owns the temp, so don't release it
 
     fn strong(index: usize) TempRef {
-        return .{ .index = index, .is_weak = false };
+        return .{ .index = index, .is_weak = 0 };
     }
 
     fn weak(index: usize) TempRef {
-        return .{ .index = index, .is_weak = true };
+        return .{ .index = index, .is_weak = 1 };
     }
 };
 
@@ -231,10 +236,10 @@ const TempManager = struct {
 fn releaseExpressionResult(cms: *CodegenModuleState, result: ExpressionResult) void {
     switch (result) {
         .temp_buffer => |temp_ref| {
-            if (!temp_ref.is_weak) cms.temp_buffers.release(temp_ref.index);
+            if (temp_ref.is_weak == 0) cms.temp_buffers.release(temp_ref.index);
         },
         .temp_float => |temp_ref| {
-            if (!temp_ref.is_weak) cms.temp_floats.release(temp_ref.index);
+            if (temp_ref.is_weak == 0) cms.temp_floats.release(temp_ref.index);
         },
         .literal_enum_value => |literal| {
             if (literal.payload) |payload| {
