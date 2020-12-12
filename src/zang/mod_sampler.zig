@@ -26,7 +26,7 @@ fn decodeSigned(
     slice: []const u8,
     index: usize,
 ) f32 {
-    const T = std.meta.IntType(.signed, byte_count * 8);
+    const T = std.meta.Int(.signed, byte_count * 8);
     const subslice = slice[index * byte_count .. (index + 1) * byte_count];
     const sval = std.mem.readIntSliceLittle(T, subslice);
     const max = 1 << @as(u32, byte_count * 8 - 1);
