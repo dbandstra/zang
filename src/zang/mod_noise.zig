@@ -5,6 +5,7 @@ const std = @import("std");
 const Span = @import("basics.zig").Span;
 
 // use u32 instead of u64 because wasm doesn't support u64 in @atomicRmw.
+// TODO would the `threadlocal` zig keyword make this easier?
 var next_seed: u32 = 0;
 
 pub const NoiseColor = enum {
