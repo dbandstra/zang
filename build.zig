@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const examples = [_][]const u8{
+const examples_to_run = [_][]const u8{
     "play",
     "song",
     "subsong",
@@ -18,17 +18,23 @@ const examples = [_][]const u8{
     "mouse",
     "two",
     "script",
+    "vibrato",
+};
+
+const examples_to_build = [_][]const u8{
     "script_runtime_mono",
     "script_runtime_poly",
-    "vibrato",
 };
 
 pub fn build(b: *std.build.Builder) void {
     b.step("test", "Run all tests").dependOn(&b.addTest("test.zig").step);
-    inline for (examples) |name| {
+    inline for (examples_to_run) |name| {
         b.step(name, "Run example '" ++ name ++ "'").dependOn(&example(b, name).run().step);
     }
     b.step("write_wav", "Run example 'write_wav'").dependOn(&writeWav(b).run().step);
+    inline for (examples_to_build) |name| {
+        b.step(name, "Build example '" ++ name ++ "'").dependOn(&example(b, name).step);
+    }
     b.step("zangc", "Build zangscript compiler").dependOn(&zangc(b).step);
 }
 

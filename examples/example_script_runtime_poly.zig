@@ -45,8 +45,7 @@ pub const MainModule = struct {
     pub const output_audio = common.AudioOut{ .mono = 0 };
     pub const output_visualize = 0;
 
-    const filename = "examples/script.txt";
-    const module_name = "Instrument";
+    const module_name = "DemoPlayer";
     const Params = struct {
         sample_rate: f32,
         freq: zang.ConstantOrBuffer,
@@ -70,11 +69,11 @@ pub const MainModule = struct {
 
     iq: zang.Notes(Params).ImpulseQueue,
 
-    pub fn init(out_script_error: *?[]const u8) !MainModule {
+    pub fn init(filename: []const u8, out_script_error: *?[]const u8) !MainModule {
         var allocator = std.heap.page_allocator;
 
         const contents = std.fs.cwd().readFileAlloc(allocator, filename, 16 * 1024 * 1024) catch |err| {
-            out_script_error.* = "couldn't open file: " ++ filename;
+            out_script_error.* = "couldn't open file";
             return err;
         };
         errdefer allocator.free(contents);

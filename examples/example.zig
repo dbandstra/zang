@@ -143,13 +143,19 @@ pub fn main() !void {
     visuals = try visual.Visuals.init(allocator, screen_w, screen_h);
     defer visuals.deinit();
 
+    var filename: []const u8 = "";
     var userdata: UserData = .{
         .ok = true,
         .main_module = undefined,
     };
     if (@typeInfo(@typeInfo(@TypeOf(example.MainModule.init)).Fn.return_type.?) == .ErrorUnion) {
+        // note: arg values are never freed... oh well
+        var args = std.process.args();
+        _ = args.next(allocator); // skip program name
+        filename = try args.next(allocator) orelse return error.MissingArgument;
+
         var script_error: ?[]const u8 = null;
-        userdata.main_module = example.MainModule.init(&script_error) catch blk: {
+        userdata.main_module = example.MainModule.init(filename, &script_error) catch blk: {
             visuals.setScriptError(script_error);
             visuals.setState(visuals.state);
             userdata.ok = false;
@@ -316,7 +322,7 @@ pub fn main() !void {
                     userdata.ok = true;
                     if (@typeInfo(@typeInfo(@TypeOf(example.MainModule.init)).Fn.return_type.?) == .ErrorUnion) {
                         var script_error: ?[]const u8 = null;
-                        userdata.main_module = example.MainModule.init(&script_error) catch blk: {
+                        userdata.main_module = example.MainModule.init(filename, &script_error) catch blk: {
                             visuals.setScriptError(script_error);
                             visuals.setState(visuals.state);
                             userdata.ok = false;
@@ -397,7 +403,7 @@ pub fn main() !void {
                         userdata.ok = true;
                         if (@typeInfo(@typeInfo(@TypeOf(example.MainModule.init)).Fn.return_type.?) == .ErrorUnion) {
                             var script_error: ?[]const u8 = null;
-                            userdata.main_module = example.MainModule.init(&script_error) catch blk: {
+                            userdata.main_module = example.MainModule.init(filename, &script_error) catch blk: {
                                 visuals.setScriptError(script_error);
                                 visuals.setState(visuals.state);
                                 userdata.ok = false;

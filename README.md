@@ -88,15 +88,19 @@ This is WIP. It's a DSL that can be compiled into Zig code. Writing Zangscript w
 ```
 zig build zangc
 zig-cache/zangc -o examples/scriptgen.zig examples/script.txt
-zig build script
+zig build script  # build and launch the player, using examples/scriptgen.zig
 ```
 
-The scripts can also be evaluated at runtime. The result should be the same as when compiling to Zig, but you trade efficiency for the ability to reload changes to the script on the fly.
+The player application lets you play notes on the keyboard. For this to work, the script must contain a module called `DemoModule` (params are `freq: cob` and `note_on: boolean`).
+
+Scripts can also be evaluated at runtime. The result should be the same as when compiling to Zig, but you trade efficiency for the ability to reload changes to the script on the fly.
 
 ```
-# loads and runs examples/script.txt
-zig build script_runtime_mono  # monophonic, or
-zig build script_runtime_poly  # polyphonic
+# monophonic
+zig build script_runtime_mono
+zig-cache/script_runtime_mono examples/script.txt
+
+# there is also `script_runtime_poly` which has polyphony
 ```
 
 If you set the `ZANG_LISTEN_PORT` environment variable, the zang example program will open a UDP socket. Send the string `reload` to this port and the example will reload (same as pressing Enter). You can hook this up to a filesystem-watching tool to get reload-on-save (see the included script `watch_script.sh` which uses `inotifywait`).

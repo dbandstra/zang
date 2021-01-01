@@ -3,7 +3,7 @@ const zang = @import("zang");
 const note_frequencies = @import("zang-12tet");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
-const Instrument = @import("scriptgen.zig").Instrument;
+const DemoPlayer = @import("scriptgen.zig").DemoPlayer;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
 pub const AUDIO_SAMPLE_RATE = 44100;
@@ -19,28 +19,28 @@ const a4 = 440.0;
 
 pub const MainModule = struct {
     comptime {
-        std.debug.assert(Instrument.num_outputs == 1);
+        std.debug.assert(DemoPlayer.num_outputs == 1);
     }
     pub const num_outputs = 2;
-    pub const num_temps = Instrument.num_temps;
+    pub const num_temps = DemoPlayer.num_temps;
 
     pub const output_audio = common.AudioOut{ .mono = 0 };
     pub const output_visualize = 0;
     pub const output_sync_oscilloscope = 1;
 
     key: ?i32,
-    iq: zang.Notes(Instrument.Params).ImpulseQueue,
+    iq: zang.Notes(DemoPlayer.Params).ImpulseQueue,
     idgen: zang.IdGenerator,
-    instr: Instrument,
-    trig: zang.Trigger(Instrument.Params),
+    instr: DemoPlayer,
+    trig: zang.Trigger(DemoPlayer.Params),
 
     pub fn init() MainModule {
         return .{
             .key = null,
-            .iq = zang.Notes(Instrument.Params).ImpulseQueue.init(),
+            .iq = zang.Notes(DemoPlayer.Params).ImpulseQueue.init(),
             .idgen = zang.IdGenerator.init(),
-            .instr = Instrument.init(),
-            .trig = zang.Trigger(Instrument.Params).init(),
+            .instr = DemoPlayer.init(),
+            .trig = zang.Trigger(DemoPlayer.Params).init(),
         };
     }
 
