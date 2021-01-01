@@ -4,7 +4,7 @@ const wav = @import("zig-wav");
 
 const example = @import("example_song.zig");
 
-const TOTAL_TIME = 19 * example.AUDIO_SAMPLE_RATE;
+const NUM_SECONDS = 6 * 60 + 25; // how long to render
 
 const bytes_per_sample = switch (example.AUDIO_FORMAT) {
     .signed8 => 1,
@@ -14,36 +14,55 @@ const bytes_per_sample = switch (example.AUDIO_FORMAT) {
 var g_outputs: [example.MainModule.num_outputs][example.AUDIO_BUFFER_SIZE]f32 = undefined;
 var g_temps: [example.MainModule.num_temps][example.AUDIO_BUFFER_SIZE]f32 = undefined;
 
-var g_big_buffer: [TOTAL_TIME * bytes_per_sample * example.MainModule.num_outputs]u8 = undefined;
+var g_mixbuf: [example.AUDIO_BUFFER_SIZE * bytes_per_sample * example.MainModule.num_outputs]u8 = undefined;
 
 pub fn main() !void {
     var main_module = example.MainModule.init();
 
-    // TODO stream directly to wav file instead of to the "big buffer" (this
-    // might require expanding the zig-wav API - it will need to be able to
-    // seek back and write the length after streaming is done).
+    var outputs: [example.MainModule.num_outputs][]f32 = undefined;
+    for (outputs) |*output, i|
+        output.* = &g_outputs[i];
+
+    var temps: [example.MainModule.num_temps][]f32 = undefined;
+    for (temps) |*temp, i|
+        temp.* = &g_temps[i];
+
+    const file = try std.fs.cwd().createFile("out.wav", .{});
+    defer file.close();
+    var writer = file.writer();
+
+    const WavSaver = wav.Saver(@TypeOf(writer));
+    try WavSaver.writeHeader(writer, .{
+        .num_channels = example.MainModule.num_outputs,
+        .sample_rate = example.AUDIO_SAMPLE_RATE,
+        .format = switch (example.AUDIO_FORMAT) {
+            .signed8 => .unsigned8,
+            .signed16_lsb => .signed16_lsb,
+        },
+    });
+
+    const total = NUM_SECONDS * example.AUDIO_SAMPLE_RATE;
+    const num_iterations = (total + example.AUDIO_BUFFER_SIZE - 1) / example.AUDIO_BUFFER_SIZE;
+
+    var progress: std.Progress = .{};
+    const progress_node = try progress.start("rendering audio", num_iterations);
+    defer progress_node.end();
+
     var start: usize = 0;
-    while (start < TOTAL_TIME) {
-        const len = std.math.min(example.AUDIO_BUFFER_SIZE, TOTAL_TIME - start);
+    var bytes_written: usize = 0;
+    while (start < total) {
+        const len = std.math.min(example.AUDIO_BUFFER_SIZE, total - start);
 
         const span = zang.Span.init(0, len);
 
-        var outputs: [example.MainModule.num_outputs][]f32 = undefined;
-        for (outputs) |*output, i| {
-            output.* = &g_outputs[i];
+        for (outputs) |*output, i|
             zang.zero(span, output.*);
-        }
-
-        var temps: [example.MainModule.num_temps][]f32 = undefined;
-        for (temps) |*temp, i| {
-            temp.* = &g_temps[i];
-        }
 
         main_module.paint(span, outputs, temps);
 
         for (outputs) |output, i| {
             const m = bytes_per_sample * example.MainModule.num_outputs;
-            const out_slice = g_big_buffer[start * m .. (start + len) * m];
+            const out_slice = g_mixbuf[0 .. len * m];
             zang.mixDown(
                 out_slice,
                 output[span.start..span.end],
@@ -59,21 +78,15 @@ pub fn main() !void {
                     byte.* = @intCast(u8, i16(signed_byte) + 128);
                 }
             }
+            try writer.writeAll(out_slice);
         }
 
         start += len;
+        bytes_written += len * bytes_per_sample;
+
+        progress_node.completeOne();
     }
 
-    const file = try std.fs.cwd().createFile("out.wav", .{});
-    defer file.close();
-    var stream = file.outStream();
-    try wav.Saver(@TypeOf(stream)).save(&stream, .{
-        .num_channels = example.MainModule.num_outputs,
-        .sample_rate = example.AUDIO_SAMPLE_RATE,
-        .format = switch (example.AUDIO_FORMAT) {
-            .signed8 => .unsigned8,
-            .signed16_lsb => .signed16_lsb,
-        },
-        .data = &g_big_buffer,
-    });
+    var seeker = file.seekableStream();
+    try WavSaver.patchHeader(writer, seeker, bytes_written);
 }
