@@ -455,18 +455,24 @@ fn createExpr(ps: *ParseState, loc0: SourceLocation, inner: ExpressionInner) !*c
 }
 
 fn resolveName(ps: *ParseState, pc: ParseContext, token: Token) ExpressionInner {
-    // it's either a local...
+    // is it a local? walk up the scopes
     switch (pc) {
         .global => {},
         .module => |pcm| {
             const name = ps.tokenizer.ctx.source.getString(token.source_range);
             var maybe_s: ?*const Scope = pcm.scope;
             while (maybe_s) |sc| : (maybe_s = sc.parent) {
-                for (sc.statements.items) |statement| {
-                    switch (statement) {
+                // loop through declarations in reverse order, because
+                // redeclaring the same name (shadowing in the same scope) is
+                // allowed
+                var i = sc.statements.items.len;
+                while (i > 0) {
+                    i -= 1;
+                    switch (sc.statements.items[i]) {
                         .let_assignment => |x| {
-                            if (std.mem.eql(u8, pcm.ps_mod.locals.items[x.local_index].name, name)) {
-                                return ExpressionInner{ .local = x.local_index };
+                            const local = pcm.ps_mod.locals.items[x.local_index];
+                            if (std.mem.eql(u8, local.name, name)) {
+                                return .{ .local = x.local_index };
                             }
                         },
                         else => {},
@@ -475,7 +481,8 @@ fn resolveName(ps: *ParseState, pc: ParseContext, token: Token) ExpressionInner 
             }
         },
     }
-    // ...or a name that will be resolved during codegen (param or global)
+    // if it's not a local, it's a name that will be resolved during codegen
+    // (i.e. a param or a global)
     return .{ .name = token };
 }
 
