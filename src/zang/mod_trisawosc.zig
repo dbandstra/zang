@@ -69,7 +69,7 @@ pub const TriSawOsc = struct {
                     freq[span.start..span.end],
                     params.color,
                 );
-            }
+            },
         }
     }
 
@@ -97,7 +97,8 @@ pub const TriSawOsc = struct {
         const c1 = gain / col;
         const c2 = -gain / (1.0 - col);
         var state = if ((cnt -% ifreq) < brpt) @as(u32, 3) else @as(u32, 0);
-        var i: usize = 0; while (i < output.len) : (i += 1) {
+        var i: usize = 0;
+        while (i < output.len) : (i += 1) {
             const p = utof23(cnt) - col;
             state = ((state << 1) | @boolToInt(cnt < brpt)) & 3;
             const s = state | (@as(u32, @boolToInt(cnt < ifreq)) << 2);
@@ -129,7 +130,8 @@ pub const TriSawOsc = struct {
         // paintConstantFrequency
         var t = self.t;
         const gain = 0.7;
-        var i: usize = 0; while (i < output.len) : (i += 1) {
+        var i: usize = 0;
+        while (i < output.len) : (i += 1) {
             var frac: f32 = undefined;
             if (color < 0.25 or color > 0.75) {
                 // sawtooth

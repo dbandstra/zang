@@ -40,7 +40,8 @@ pub const Decimator = struct {
             var dcount = self.dcount;
             var dval = self.dval;
 
-            var i = span.start; while (i < span.end) : (i += 1) {
+            var i = span.start;
+            while (i < span.end) : (i += 1) {
                 dcount += ratio;
                 if (dcount >= 1.0) {
                     dval = params.input[i];

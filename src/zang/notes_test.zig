@@ -8,15 +8,15 @@ const MyNoteParams = struct {
 };
 
 test "PolyphonyDispatcher: 5 note-ons with 3 slots" {
-    const iap = Notes(MyNoteParams).ImpulsesAndParamses {
-        .impulses = &[_]Impulse {
+    const iap = Notes(MyNoteParams).ImpulsesAndParamses{
+        .impulses = &[_]Impulse{
             .{ .frame = 100, .note_id = 1, .event_id = 1 },
             .{ .frame = 200, .note_id = 2, .event_id = 2 },
             .{ .frame = 300, .note_id = 3, .event_id = 3 },
             .{ .frame = 400, .note_id = 4, .event_id = 4 },
             .{ .frame = 500, .note_id = 5, .event_id = 5 },
         },
-        .paramses = &[_]MyNoteParams {
+        .paramses = &[_]MyNoteParams{
             .{ .note_on = true },
             .{ .note_on = true },
             .{ .note_on = true },
@@ -41,15 +41,15 @@ test "PolyphonyDispatcher: 5 note-ons with 3 slots" {
 }
 
 test "PolyphonyDispatcher: single note on and off" {
-    const iap = Notes(MyNoteParams).ImpulsesAndParamses {
-        .impulses = &[_]Impulse {
+    const iap = Notes(MyNoteParams).ImpulsesAndParamses{
+        .impulses = &[_]Impulse{
             .{ .frame = 100, .note_id = 1, .event_id = 1 },
             .{ .frame = 200, .note_id = 1, .event_id = 2 },
             .{ .frame = 300, .note_id = 2, .event_id = 3 },
             .{ .frame = 400, .note_id = 2, .event_id = 4 },
             .{ .frame = 500, .note_id = 3, .event_id = 5 },
         },
-        .paramses = &[_]MyNoteParams {
+        .paramses = &[_]MyNoteParams{
             .{ .note_on = true },
             .{ .note_on = false },
             .{ .note_on = true },
@@ -74,8 +74,8 @@ test "PolyphonyDispatcher: single note on and off" {
 }
 
 test "PolyphonyDispatcher: reuse least recently released slot" {
-    const iap = Notes(MyNoteParams).ImpulsesAndParamses {
-        .impulses = &[_]Impulse {
+    const iap = Notes(MyNoteParams).ImpulsesAndParamses{
+        .impulses = &[_]Impulse{
             .{ .frame = 100, .note_id = 1, .event_id = 1 },
             .{ .frame = 200, .note_id = 2, .event_id = 2 },
             .{ .frame = 300, .note_id = 3, .event_id = 3 },
@@ -86,7 +86,7 @@ test "PolyphonyDispatcher: reuse least recently released slot" {
 
             .{ .frame = 700, .note_id = 4, .event_id = 7 },
         },
-        .paramses = &[_]MyNoteParams {
+        .paramses = &[_]MyNoteParams{
             .{ .note_on = true },
             .{ .note_on = true },
             .{ .note_on = true },

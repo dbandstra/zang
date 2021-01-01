@@ -36,18 +36,19 @@ fn mixDownS16LSB(
 
     const mul = vol * 32767.0;
 
-    var i: usize = 0; while (i < mix_buffer.len) : (i += 1) {
+    var i: usize = 0;
+    while (i < mix_buffer.len) : (i += 1) {
         const value = mix_buffer[i] * mul;
 
         const clamped_value =
             if (value <= -32767.0)
-                @as(i16, -32767)
-            else if (value >= 32766.0)
-                @as(i16, 32766)
-            else if (value != value) // NaN
-                @as(i16, 0)
-            else
-                @floatToInt(i16, value);
+            @as(i16, -32767)
+        else if (value >= 32766.0)
+            @as(i16, 32766)
+        else if (value != value) // NaN
+            @as(i16, 0)
+        else
+            @floatToInt(i16, value);
 
         const index = (i * num_channels + channel_index) * 2;
         dst[index + 0] = @intCast(u8, clamped_value & 0xFF);
@@ -66,18 +67,19 @@ fn mixDownS8(
 
     const mul = vol * 127.0;
 
-    var i: usize = 0; while (i < mix_buffer.len) : (i += 1) {
+    var i: usize = 0;
+    while (i < mix_buffer.len) : (i += 1) {
         const value = mix_buffer[i] * mul;
 
         const clamped_value =
             if (value <= -127.0)
-                @as(i8, -127)
-            else if (value >= 126.0)
-                @as(i8, 126)
-            else if (value != value) // NaN
-                @as(i8, 0)
-            else
-                @floatToInt(i8, value);
+            @as(i8, -127)
+        else if (value >= 126.0)
+            @as(i8, 126)
+        else if (value != value) // NaN
+            @as(i8, 0)
+        else
+            @floatToInt(i8, value);
 
         dst[i * num_channels + channel_index] = @bitCast(u8, clamped_value);
     }

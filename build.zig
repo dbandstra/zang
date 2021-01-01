@@ -39,7 +39,7 @@ fn example(
     var o = b.addExecutable(name, "examples/example.zig");
     o.setBuildMode(b.standardReleaseOptions());
     o.setOutputDir("zig-cache");
-    o.addPackagePath("wav", "examples/zig-wav/wav.zig");
+    o.addPackagePath("zig-wav", "examples/zig-wav/wav.zig");
     o.addPackagePath("zang", "src/zang.zig");
     o.addPackagePath("zang-12tet", "src/zang-12tet.zig");
     o.addPackagePath("zangscript", "src/zangscript.zig");
@@ -53,7 +53,7 @@ fn writeWav(b: *std.build.Builder) *std.build.LibExeObjStep {
     var o = b.addExecutable("write_wav", "examples/write_wav.zig");
     o.setBuildMode(b.standardReleaseOptions());
     o.setOutputDir("zig-cache");
-    o.addPackagePath("wav", "examples/zig-wav/wav.zig");
+    o.addPackagePath("zig-wav", "examples/zig-wav/wav.zig");
     o.addPackagePath("zang", "src/zang.zig");
     o.addPackagePath("zang-12tet", "src/zang-12tet.zig");
     return o;

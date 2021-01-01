@@ -47,7 +47,7 @@ pub fn Trigger(comptime ParamsType: type) type {
         };
 
         pub fn init() @This() {
-            return @This() {
+            return @This(){
                 .note = null,
             };
         }
@@ -61,7 +61,7 @@ pub fn Trigger(comptime ParamsType: type) type {
             span: Span,
             iap: Notes(ParamsType).ImpulsesAndParamses,
         ) Counter {
-            return Counter {
+            return Counter{
                 .iap = iap,
                 .impulse_index = 0,
                 .start = span.start,
@@ -75,22 +75,20 @@ pub fn Trigger(comptime ParamsType: type) type {
                 // peek ahead in order to stop as soon as the first next new
                 // note comes). then, take impulses from the ctr
                 // (getNextNoteSpan).
-                const note_span = carryOver(ctr, self.note)
-                    orelse getNextNoteSpan(ctr);
+                const note_span = carryOver(ctr, self.note) orelse getNextNoteSpan(ctr);
 
                 ctr.start = note_span.end;
 
                 if (note_span.note) |note| {
                     defer self.note = note;
 
-                    return NewPaintReturnValue {
+                    return NewPaintReturnValue{
                         .span = Span.init(note_span.start, note_span.end),
                         .params = note.params,
-                        .note_id_changed =
-                            if (self.note) |self_note|
-                                note.id != self_note.id
-                            else
-                                true,
+                        .note_id_changed = if (self.note) |self_note|
+                            note.id != self_note.id
+                        else
+                            true,
                     };
                 }
             }
@@ -108,7 +106,7 @@ pub fn Trigger(comptime ParamsType: type) type {
                     if (next_impulse_frame > ctr.start) {
                         // next impulse starts later, so play the current note
                         // for now
-                        return NoteSpan {
+                        return NoteSpan{
                             .start = ctr.start,
                             .end = std.math.min(ctr.end, next_impulse_frame),
                             .note = note,
@@ -119,7 +117,7 @@ pub fn Trigger(comptime ParamsType: type) type {
                     }
                 } else {
                     // no new impulses - play current note for the whole buffer
-                    return NoteSpan {
+                    return NoteSpan{
                         .start = ctr.start,
                         .end = ctr.end,
                         .note = note,
@@ -145,7 +143,7 @@ pub fn Trigger(comptime ParamsType: type) type {
 
                 if (impulse.frame > ctr.start) {
                     // gap before the note begins
-                    return NoteSpan {
+                    return NoteSpan{
                         .start = ctr.start,
                         .end = impulse.frame,
                         .note = null,
@@ -160,9 +158,9 @@ pub fn Trigger(comptime ParamsType: type) type {
                 // exists), or the end of the buffer, whichever comes first
                 const note_end_clipped =
                     if (i + 1 < impulses.len)
-                        std.math.min(ctr.end, impulses[i + 1].frame)
-                    else
-                        ctr.end;
+                    std.math.min(ctr.end, impulses[i + 1].frame)
+                else
+                    ctr.end;
 
                 if (note_end_clipped <= ctr.start) {
                     // either the impulse is entirely in the past (which
@@ -171,10 +169,10 @@ pub fn Trigger(comptime ParamsType: type) type {
                     continue;
                 }
 
-                return NoteSpan {
+                return NoteSpan{
                     .start = ctr.start,
                     .end = note_end_clipped,
-                    .note = NoteSpanNote {
+                    .note = NoteSpanNote{
                         .id = impulse.note_id,
                         .params = paramses[i],
                     },
@@ -182,7 +180,7 @@ pub fn Trigger(comptime ParamsType: type) type {
             }
 
             // no more impulses
-            return NoteSpan {
+            return NoteSpan{
                 .start = ctr.start,
                 .end = ctr.end,
                 .note = null,

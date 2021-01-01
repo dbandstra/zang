@@ -7,7 +7,7 @@ pub const IdGenerator = struct {
     next_id: usize,
 
     pub fn init() IdGenerator {
-        return IdGenerator {
+        return IdGenerator{
             .next_id = 1,
         };
     }
@@ -39,7 +39,7 @@ pub fn Notes(comptime NoteParamsType: type) type {
             next_event_id: usize,
 
             pub fn init() ImpulseQueue {
-                return ImpulseQueue {
+                return ImpulseQueue{
                     .impulses_array = undefined,
                     .paramses_array = undefined,
                     .length = 0,
@@ -56,7 +56,7 @@ pub fn Notes(comptime NoteParamsType: type) type {
             pub fn consume(self: *ImpulseQueue) ImpulsesAndParamses {
                 defer self.length = 0;
 
-                return ImpulsesAndParamses {
+                return ImpulsesAndParamses{
                     .impulses = self.impulses_array[0..self.length],
                     .paramses = self.paramses_array[0..self.length],
                 };
@@ -72,15 +72,14 @@ pub fn Notes(comptime NoteParamsType: type) type {
                     // std.debug.warn("ImpulseQueue: no more slots\n"); // FIXME
                     return;
                 }
-                if (
-                    self.length > 0 and
-                    impulse_frame < self.impulses_array[self.length - 1].frame
-                ) {
+                if (self.length > 0 and
+                    impulse_frame < self.impulses_array[self.length - 1].frame)
+                {
                     // you must push impulses in order. this could even be a panic
                     // std.debug.warn("ImpulseQueue: notes pushed out of order\n");
                     return;
                 }
-                self.impulses_array[self.length] = Impulse {
+                self.impulses_array[self.length] = Impulse{
                     .frame = impulse_frame,
                     .note_id = note_id,
                     .event_id = self.next_event_id,
@@ -147,7 +146,7 @@ pub fn Notes(comptime NoteParamsType: type) type {
                         // TODO - do something graceful-ish when count >=
                         // self.impulse_array.len
                         self.next_song_event += 1;
-                        self.impulses_array[count] = Impulse {
+                        self.impulses_array[count] = Impulse{
                             .frame = rel_frame_index,
                             .note_id = song_event.note_id,
                             .event_id = self.next_song_event,
@@ -162,7 +161,7 @@ pub fn Notes(comptime NoteParamsType: type) type {
 
                 self.t = end_t;
 
-                return ImpulsesAndParamses {
+                return ImpulsesAndParamses{
                     .impulses = self.impulses_array[0..count],
                     .paramses = self.paramses_array[0..count],
                 };
@@ -193,7 +192,7 @@ pub fn Notes(comptime NoteParamsType: type) type {
                 paramses_array: [polyphony][32]NoteParamsType,
 
                 pub fn init() @This() {
-                    return @This() {
+                    return @This(){
                         .slots = [1]?SlotState{null} ** polyphony,
                         .impulses_array = undefined,
                         .paramses_array = undefined,
@@ -235,7 +234,8 @@ pub fn Notes(comptime NoteParamsType: type) type {
                                 if (!slot.note_on) {
                                     if (maybe_best) |best| {
                                         if (slot.event_id <
-                                                self.slots[best].?.event_id) {
+                                            self.slots[best].?.event_id)
+                                        {
                                             maybe_best = slot_index;
                                         }
                                     } else { // maybe_best == null
@@ -258,7 +258,8 @@ pub fn Notes(comptime NoteParamsType: type) type {
                     var slot_index: usize = 1;
                     while (slot_index < polyphony) : (slot_index += 1) {
                         if (self.slots[slot_index].?.event_id <
-                                self.slots[best].?.event_id) {
+                            self.slots[best].?.event_id)
+                        {
                             best = slot_index;
                         }
                     }
@@ -273,7 +274,8 @@ pub fn Notes(comptime NoteParamsType: type) type {
                 ) [polyphony]ImpulsesAndParamses {
                     var counts = [1]usize{0} ** polyphony;
 
-                    var i: usize = 0; while (i < iap.paramses.len) : (i += 1) {
+                    var i: usize = 0;
+                    while (i < iap.paramses.len) : (i += 1) {
                         const impulse = iap.impulses[i];
                         const params = iap.paramses[i];
 
@@ -282,23 +284,22 @@ pub fn Notes(comptime NoteParamsType: type) type {
                             impulse.event_id,
                             params.note_on,
                         )) |slot_index| {
-                            self.slots[slot_index] = SlotState {
+                            self.slots[slot_index] = SlotState{
                                 .note_id = impulse.note_id,
                                 .event_id = impulse.event_id,
                                 .note_on = params.note_on,
                             };
 
-                            self.impulses_array[slot_index][counts[slot_index]]
-                                = impulse;
-                            self.paramses_array[slot_index][counts[slot_index]]
-                                = params;
+                            self.impulses_array[slot_index][counts[slot_index]] = impulse;
+                            self.paramses_array[slot_index][counts[slot_index]] = params;
                             counts[slot_index] += 1;
                         }
                     }
 
                     var result: [polyphony]ImpulsesAndParamses = undefined;
-                    i = 0; while (i < polyphony) : (i += 1) {
-                        result[i] = ImpulsesAndParamses {
+                    i = 0;
+                    while (i < polyphony) : (i += 1) {
+                        result[i] = ImpulsesAndParamses{
                             .impulses = self.impulses_array[i][0..counts[i]],
                             .paramses = self.paramses_array[i][0..counts[i]],
                         };

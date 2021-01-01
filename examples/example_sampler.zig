@@ -1,6 +1,6 @@
 const std = @import("std");
 const zang = @import("zang");
-const wav = @import("wav");
+const wav = @import("zig-wav");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
 

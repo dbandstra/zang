@@ -10,14 +10,14 @@ pub fn Delay(comptime delay_samples: usize) type {
         delay_buffer_index: usize, // this wraps around. always < delay_samples
 
         pub fn init() @This() {
-            return @This() {
+            return @This(){
                 .delay_buffer = [1]f32{0.0} ** delay_samples,
                 .delay_buffer_index = 0,
             };
         }
 
         pub fn reset(self: *@This()) void {
-            std.mem.set(f32, self.delay_buffer[0..], 0.0);
+            std.mem.set(f32, &self.delay_buffer, 0.0);
             self.delay_buffer_index = 0.0;
         }
 
@@ -26,18 +26,18 @@ pub fn Delay(comptime delay_samples: usize) type {
         // calling this function repeatedly with the remaining parts of `out`,
         // until the function returns out.len.
         pub fn readDelayBuffer(self: *@This(), out: []f32) usize {
-            const actual_out =
-                if (out.len > delay_samples)
-                    out[0..delay_samples]
-                else
-                    out;
+            const actual_out = if (out.len > delay_samples)
+                out[0..delay_samples]
+            else
+                out;
 
             const index = self.delay_buffer_index;
             const len = std.math.min(delay_samples - index, actual_out.len);
             const delay_slice = self.delay_buffer[index .. index + len];
 
             // paint from delay buffer to output
-            var i: usize = 0; while (i < len) : (i += 1) {
+            var i: usize = 0;
+            while (i < len) : (i += 1) {
                 actual_out[i] += delay_slice[i];
             }
 
@@ -47,7 +47,8 @@ pub fn Delay(comptime delay_samples: usize) type {
                 // part of the input/output
                 const b_len = actual_out.len - len;
 
-                i = 0; while (i < b_len) : (i += 1) {
+                i = 0;
+                while (i < b_len) : (i += 1) {
                     actual_out[len + i] += self.delay_buffer[i];
                 }
             }

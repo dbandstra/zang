@@ -66,7 +66,7 @@ pub const PulseOsc = struct {
                     freq[span.start..span.end],
                     params.color,
                 );
-            }
+            },
         }
     }
 
@@ -92,7 +92,8 @@ pub const PulseOsc = struct {
         const cc121 = gdf * 2.0 * (col - 1.0) + gain;
         const cc212 = gdf * 2.0 * col - gain;
         var state = if ((cnt -% ifreq) < brpt) @as(u32, 0b011) else @as(u32, 0b000);
-        var i: usize = 0; while (i < output.len) : (i += 1) {
+        var i: usize = 0;
+        while (i < output.len) : (i += 1) {
             const p = utof23(cnt);
             state = ((state << 1) | @boolToInt(cnt < brpt)) & 3;
             const s = state | (@as(u32, @boolToInt(cnt < ifreq)) << 2);
@@ -124,7 +125,8 @@ pub const PulseOsc = struct {
         const SRfcobasefrq = fc32bit / sample_rate;
         const brpt = ftou32(clamp01(color));
         const gain: f32 = 0.7;
-        var i: usize = 0; while (i < output.len) : (i += 1) {
+        var i: usize = 0;
+        while (i < output.len) : (i += 1) {
             const ifreq = @floatToInt(u32, SRfcobasefrq * freq[i]);
             output[i] += if ((cnt -% ifreq) < brpt) gain else -gain;
             cnt +%= ifreq;
