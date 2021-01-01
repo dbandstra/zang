@@ -340,7 +340,7 @@ const ScriptModule = struct {
             }
         }
 
-        self.module_instances = try allocator.alloc(*ModuleBase, inner.resolved_fields.len);
+        self.module_instances = try allocator.alloc(*ModuleBase, inner.fields.len);
         errdefer allocator.free(self.module_instances);
 
         var num_initialized_fields: usize = 0;
@@ -348,8 +348,8 @@ const ScriptModule = struct {
             module_instance.deinit();
         };
 
-        for (inner.resolved_fields) |field_module_index, i| {
-            self.module_instances[i] = try initModule(script, field_module_index, builtin_packages, allocator);
+        for (inner.fields) |field, i| {
+            self.module_instances[i] = try initModule(script, field.module_index, builtin_packages, allocator);
             num_initialized_fields += 1;
         }
 
@@ -365,12 +365,12 @@ const ScriptModule = struct {
 
         var most_callee_temps: usize = 0;
         var most_callee_params: usize = 0;
-        for (inner.resolved_fields) |field_module_index| {
-            const callee_temps = script.module_results[field_module_index].num_temps;
+        for (inner.fields) |field| {
+            const callee_temps = script.module_results[field.module_index].num_temps;
             if (callee_temps > most_callee_temps) {
                 most_callee_temps = callee_temps;
             }
-            const callee_params = script.modules[field_module_index].params;
+            const callee_params = script.modules[field.module_index].params;
             if (callee_params.len > most_callee_params) {
                 most_callee_params = callee_params.len;
             }
@@ -478,7 +478,7 @@ const ScriptModule = struct {
     fn paintCall(self: *const ScriptModule, p: PaintArgs, span: zang.Span, x: InstrCall) void {
         var out = getOut(p, x.out);
 
-        const callee_module_index = p.inner.resolved_fields[x.field_index];
+        const callee_module_index = p.inner.fields[x.field_index].module_index;
         const callee_base = self.module_instances[x.field_index];
 
         for (x.temps) |n, i| {
