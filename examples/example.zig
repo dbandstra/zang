@@ -47,12 +47,12 @@ fn audioCallback(
 
     i = 0;
     while (i < example.MainModule.num_outputs) : (i += 1) {
-        outputs[i] = g_outputs[i][0..];
+        outputs[i] = &g_outputs[i];
         zang.zero(span, outputs[i]);
     }
     i = 0;
     while (i < example.MainModule.num_temps) : (i += 1) {
-        temps[i] = g_temps[i][0..];
+        temps[i] = &g_temps[i];
     }
 
     if (userdata.ok) {
@@ -63,19 +63,19 @@ fn audioCallback(
 
     switch (example.MainModule.output_audio) {
         .mono => |both| {
-            zang.mixDown(stream, outputs[both][0..], AUDIO_FORMAT, 1, 0, mul);
+            zang.mixDown(stream, outputs[both], AUDIO_FORMAT, 1, 0, mul);
         },
         .stereo => |p| {
-            zang.mixDown(stream, outputs[p.left][0..], AUDIO_FORMAT, 2, 0, mul);
-            zang.mixDown(stream, outputs[p.right][0..], AUDIO_FORMAT, 2, 1, mul);
+            zang.mixDown(stream, outputs[p.left], AUDIO_FORMAT, 2, 0, mul);
+            zang.mixDown(stream, outputs[p.right], AUDIO_FORMAT, 2, 1, mul);
         },
     }
 
     if (@hasDecl(example.MainModule, "output_visualize")) {
-        const visualize = outputs[example.MainModule.output_visualize][0..];
+        const visualize = outputs[example.MainModule.output_visualize];
 
         const sync = if (@hasDecl(example.MainModule, "output_sync_oscilloscope"))
-            outputs[example.MainModule.output_sync_oscilloscope][0..]
+            outputs[example.MainModule.output_sync_oscilloscope]
         else
             null;
 
@@ -124,7 +124,7 @@ const Listener = struct {
         };
 
         if (num_bytes > 0) {
-            const string = buf[0..num_bytes];
+            const string = &buf;
 
             if (std.mem.eql(u8, string, "reload")) {
                 return ListenerEvent.reload;
