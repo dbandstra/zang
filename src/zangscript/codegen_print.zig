@@ -10,7 +10,7 @@ const Instruction = @import("codegen.zig").Instruction;
 const State = struct {
     cs: *const CodegenState,
     cms: *const CodegenModuleState,
-    helper: PrintHelper,
+    helper: PrintHelper(std.io.StreamSource.OutStream),
 
     pub fn print(self: *State, comptime fmt: []const u8, args: anytype) !void {
         try self.helper.print(self, fmt, args);
@@ -77,7 +77,7 @@ pub fn printBytecode(out: std.io.StreamSource.OutStream, cs: *const CodegenState
     var self: State = .{
         .cs = cs,
         .cms = cms,
-        .helper = PrintHelper.init(out),
+        .helper = PrintHelper(std.io.StreamSource.OutStream).init(out),
     };
 
     const self_module = cs.modules[cms.module_index];

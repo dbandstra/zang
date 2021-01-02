@@ -11,7 +11,7 @@ const State = struct {
     source: Source,
     modules: []const Module,
     module: Module,
-    helper: PrintHelper,
+    helper: PrintHelper(std.io.StreamSource.OutStream),
 
     pub fn print(self: *State, comptime fmt: []const u8, args: anytype) !void {
         try self.helper.print(self, fmt, args);
@@ -108,12 +108,18 @@ const State = struct {
     }
 };
 
-pub fn parsePrintModule(out: std.io.StreamSource.OutStream, source: Source, modules: []const Module, module_index: usize, module: Module) !void {
+pub fn parsePrintModule(
+    out: std.io.StreamSource.OutStream,
+    source: Source,
+    modules: []const Module,
+    module_index: usize,
+    module: Module,
+) !void {
     var self: State = .{
         .source = source,
         .modules = modules,
         .module = module,
-        .helper = PrintHelper.init(out),
+        .helper = PrintHelper(std.io.StreamSource.OutStream).init(out),
     };
 
     if (module.info) |info| {

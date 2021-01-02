@@ -21,6 +21,7 @@ pub const CompiledScript = struct {
     module_results: []const CodeGenModuleResult,
     exported_modules: []const ExportedModule,
 
+    // do i ever use this?
     pub fn deinit(self: *CompiledScript) void {
         self.codegen_arena.deinit();
         self.parse_arena.deinit();

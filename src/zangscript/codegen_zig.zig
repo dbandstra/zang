@@ -14,86 +14,93 @@ const Instruction = @import("codegen.zig").Instruction;
 const CodeGenCustomModuleInner = @import("codegen.zig").CodeGenCustomModuleInner;
 const CompiledScript = @import("compile.zig").CompiledScript;
 
-const State = struct {
+fn State(comptime Writer: type) type {
+    return struct {
+        script: CompiledScript,
+        module: ?Module,
+        helper: PrintHelper(Writer),
+
+        pub fn print(self: *@This(), comptime fmt: []const u8, args: anytype) !void {
+            try self.helper.print(self, fmt, args);
+        }
+
+        pub fn printArgValue(self: *@This(), comptime arg_format: []const u8, arg: anytype) !void {
+            if (comptime std.mem.eql(u8, arg_format, "identifier")) {
+                try self.printIdentifier(arg);
+            } else if (comptime std.mem.eql(u8, arg_format, "module_name")) {
+                try self.printModuleName(arg);
+            } else if (comptime std.mem.eql(u8, arg_format, "buffer_dest")) {
+                try self.printBufferDest(arg);
+            } else if (comptime std.mem.eql(u8, arg_format, "expression_result")) {
+                try self.printExpressionResult(arg);
+            } else {
+                @compileError("unknown arg_format: \"" ++ arg_format ++ "\"");
+            }
+        }
+
+        fn printIdentifier(self: *@This(), string: []const u8) !void {
+            if (std.zig.Token.getKeyword(string) != null) {
+                try self.print("@\"{str}\"", .{string});
+            } else {
+                try self.print("{str}", .{string});
+            }
+        }
+
+        fn printModuleName(self: *@This(), module_index: usize) !void {
+            const module = self.script.modules[module_index];
+            if (module.zig_package_name) |pkg_name| {
+                try self.print("{identifier}.{identifier}", .{ pkg_name, module.builtin_name.? });
+            } else {
+                try self.print("_module{usize}", .{module_index});
+            }
+        }
+
+        fn printExpressionResult(self: *@This(), result: ExpressionResult) (error{NoModule} || Writer.Error)!void {
+            switch (result) {
+                .nothing => unreachable,
+                .temp_buffer => |temp_ref| try self.print("temps[{usize}]", .{temp_ref.index}),
+                .temp_float => |temp_ref| try self.print("temp_float{usize}", .{temp_ref.index}),
+                .literal_boolean => |value| try self.print("{bool}", .{value}),
+                .literal_number => |value| try self.print("{number_literal}", .{value}),
+                .literal_enum_value => |v| {
+                    if (v.payload) |payload| {
+                        try self.print(".{{ .{identifier} = {expression_result} }}", .{ v.label, payload.* });
+                    } else {
+                        try self.print(".{identifier}", .{v.label});
+                    }
+                },
+                .literal_curve => |curve_index| try self.print("&_curve{usize}", .{curve_index}),
+                .literal_track => |track_index| try self.print("_track{usize}", .{track_index}),
+                .literal_module => |module_index| try self.print("{module_name}", .{module_index}),
+                .self_param => |i| {
+                    const module = self.module orelse return error.NoModule;
+                    try self.print("params.{identifier}", .{module.params[i].name});
+                },
+                .track_param => |x| {
+                    try self.print("_result.params.{identifier}", .{self.script.tracks[x.track_index].params[x.param_index].name});
+                },
+            }
+        }
+
+        fn printBufferDest(self: *@This(), value: BufferDest) !void {
+            switch (value) {
+                .temp_buffer_index => |i| try self.print("temps[{usize}]", .{i}),
+                .output_index => |i| try self.print("outputs[{usize}]", .{i}),
+            }
+        }
+    };
+}
+
+pub fn generateZig(
+    out: anytype,
+    builtin_packages: []const BuiltinPackage,
     script: CompiledScript,
-    module: ?Module,
-    helper: PrintHelper,
-
-    pub fn print(self: *State, comptime fmt: []const u8, args: anytype) !void {
-        try self.helper.print(self, fmt, args);
-    }
-
-    pub fn printArgValue(self: *State, comptime arg_format: []const u8, arg: anytype) !void {
-        if (comptime std.mem.eql(u8, arg_format, "identifier")) {
-            try self.printIdentifier(arg);
-        } else if (comptime std.mem.eql(u8, arg_format, "module_name")) {
-            try self.printModuleName(arg);
-        } else if (comptime std.mem.eql(u8, arg_format, "buffer_dest")) {
-            try self.printBufferDest(arg);
-        } else if (comptime std.mem.eql(u8, arg_format, "expression_result")) {
-            try self.printExpressionResult(arg);
-        } else {
-            @compileError("unknown arg_format: \"" ++ arg_format ++ "\"");
-        }
-    }
-
-    fn printIdentifier(self: *State, string: []const u8) !void {
-        if (std.zig.Token.getKeyword(string) != null) {
-            try self.print("@\"{str}\"", .{string});
-        } else {
-            try self.print("{str}", .{string});
-        }
-    }
-
-    fn printModuleName(self: *State, module_index: usize) !void {
-        const module = self.script.modules[module_index];
-        if (module.zig_package_name) |pkg_name| {
-            try self.print("{identifier}.{identifier}", .{ pkg_name, module.builtin_name.? });
-        } else {
-            try self.print("_module{usize}", .{module_index});
-        }
-    }
-
-    fn printExpressionResult(self: *State, result: ExpressionResult) (error{NoModule} || std.os.WriteError)!void {
-        switch (result) {
-            .nothing => unreachable,
-            .temp_buffer => |temp_ref| try self.print("temps[{usize}]", .{temp_ref.index}),
-            .temp_float => |temp_ref| try self.print("temp_float{usize}", .{temp_ref.index}),
-            .literal_boolean => |value| try self.print("{bool}", .{value}),
-            .literal_number => |value| try self.print("{number_literal}", .{value}),
-            .literal_enum_value => |v| {
-                if (v.payload) |payload| {
-                    try self.print(".{{ .{identifier} = {expression_result} }}", .{ v.label, payload.* });
-                } else {
-                    try self.print(".{identifier}", .{v.label});
-                }
-            },
-            .literal_curve => |curve_index| try self.print("&_curve{usize}", .{curve_index}),
-            .literal_track => |track_index| try self.print("_track{usize}", .{track_index}),
-            .literal_module => |module_index| try self.print("{module_name}", .{module_index}),
-            .self_param => |i| {
-                const module = self.module orelse return error.NoModule;
-                try self.print("params.{identifier}", .{module.params[i].name});
-            },
-            .track_param => |x| {
-                try self.print("_result.params.{identifier}", .{self.script.tracks[x.track_index].params[x.param_index].name});
-            },
-        }
-    }
-
-    fn printBufferDest(self: *State, value: BufferDest) !void {
-        switch (value) {
-            .temp_buffer_index => |i| try self.print("temps[{usize}]", .{i}),
-            .output_index => |i| try self.print("outputs[{usize}]", .{i}),
-        }
-    }
-};
-
-pub fn generateZig(out: std.io.StreamSource.OutStream, builtin_packages: []const BuiltinPackage, script: CompiledScript) !void {
-    var self: State = .{
+) !void {
+    const Writer = @TypeOf(out);
+    var self: State(Writer) = .{
         .script = script,
         .module = null,
-        .helper = PrintHelper.init(out),
+        .helper = PrintHelper(Writer).init(out),
     };
 
     try self.print("// THIS FILE WAS GENERATED BY THE ZANGC COMPILER\n\n", .{});
@@ -131,7 +138,7 @@ pub fn generateZig(out: std.io.StreamSource.OutStream, builtin_packages: []const
         try self.print("\n", .{});
         try self.print("const _track{usize} = struct {{\n", .{track_index});
         try self.print("const Params = struct {{\n", .{});
-        try printParamDecls(&self, track.params, false);
+        try printParamDecls(Writer, &self, track.params, false);
         try self.print("}};\n", .{});
         try self.print("const notes = [_]zang.Notes(Params).SongEvent{{\n", .{});
         for (track.notes) |note, note_index| {
@@ -162,11 +169,11 @@ pub fn generateZig(out: std.io.StreamSource.OutStream, builtin_packages: []const
         try self.print("pub const num_outputs = {usize};\n", .{module_result.num_outputs});
         try self.print("pub const num_temps = {usize};\n", .{module_result.num_temps});
         try self.print("pub const Params = struct {{\n", .{});
-        try printParamDecls(&self, module.params, false);
+        try printParamDecls(Writer, &self, module.params, false);
         try self.print("}};\n", .{});
         // this is for oxid. it wants a version of the params without sample_rate, which can be used with impulse queues.
         try self.print("pub const NoteParams = struct {{\n", .{});
-        try printParamDecls(&self, module.params, true);
+        try printParamDecls(Writer, &self, module.params, true);
         try self.print("}};\n", .{});
         try self.print("\n", .{});
 
@@ -204,7 +211,7 @@ pub fn generateZig(out: std.io.StreamSource.OutStream, builtin_packages: []const
         try self.print("\n", .{});
         try self.print("pub fn paint(self: *_module{usize}, span: zang.Span, outputs: [num_outputs][]f32, temps: [num_temps][]f32, note_id_changed: bool, params: Params) void {{\n", .{i});
         for (inner.instructions) |instr| {
-            try genInstruction(&self, module, inner, instr, "span", "note_id_changed");
+            try genInstruction(Writer, &self, module, inner, instr, "span", "note_id_changed");
         }
         try self.print("}}\n", .{});
         try self.print("}};\n", .{});
@@ -213,7 +220,12 @@ pub fn generateZig(out: std.io.StreamSource.OutStream, builtin_packages: []const
     self.helper.finish();
 }
 
-fn printParamDecls(self: *State, params: []const ModuleParam, skip_sample_rate: bool) !void {
+fn printParamDecls(
+    comptime Writer: type,
+    self: *State(Writer),
+    params: []const ModuleParam,
+    skip_sample_rate: bool,
+) !void {
     for (params) |param| {
         if (skip_sample_rate and std.mem.eql(u8, param.name, "sample_rate")) {
             continue;
@@ -231,13 +243,14 @@ fn printParamDecls(self: *State, params: []const ModuleParam, skip_sample_rate: 
 }
 
 fn genInstruction(
-    self: *State,
+    comptime Writer: type,
+    self: *State(Writer),
     module: Module,
     inner: CodeGenCustomModuleInner,
     instr: Instruction,
     span: []const u8,
     note_id_changed: []const u8,
-) (error{NoModule} || std.os.WriteError)!void {
+) (error{NoModule} || Writer.Error)!void {
     switch (instr) {
         .copy_buffer => |x| {
             const func: []const u8 = switch (x.out) {
@@ -508,7 +521,7 @@ fn genInstruction(
             }
 
             for (track_call.instructions) |sub_instr| {
-                try genInstruction(self, module, inner, sub_instr, "_result.span", "_new_note");
+                try genInstruction(Writer, self, module, inner, sub_instr, "_result.span", "_new_note");
             }
 
             try self.print("}}\n", .{});
@@ -559,7 +572,7 @@ fn genInstruction(
 
             try self.print("// inner expression\n", .{});
             for (delay.instructions) |sub_instr| {
-                try genInstruction(self, module, inner, sub_instr, "inner_span", note_id_changed);
+                try genInstruction(Writer, self, module, inner, sub_instr, "inner_span", note_id_changed);
             }
 
             // end
