@@ -3,44 +3,44 @@ const Context = @import("context.zig").Context;
 const SourceRange = @import("context.zig").SourceRange;
 const BuiltinEnumValue = @import("builtins.zig").BuiltinEnumValue;
 
-fn printSourceRange(out: std.io.StreamSource.OutStream, contents: []const u8, source_range: SourceRange) !void {
-    try out.writeAll(contents[source_range.loc0.index..source_range.loc1.index]);
+fn printSourceRange(writer: anytype, contents: []const u8, source_range: SourceRange) !void {
+    try writer.writeAll(contents[source_range.loc0.index..source_range.loc1.index]);
 }
 
-fn printErrorMessage(out: std.io.StreamSource.OutStream, maybe_source_range: ?SourceRange, contents: []const u8, comptime fmt: []const u8, args: anytype) !void {
+fn printErrorMessage(writer: anytype, maybe_source_range: ?SourceRange, contents: []const u8, comptime fmt: []const u8, args: anytype) !void {
     comptime var arg_index: usize = 0;
     inline for (fmt) |ch| {
         if (ch == '%') {
             // source range
-            try printSourceRange(out, contents, args[arg_index]);
+            try printSourceRange(writer, contents, args[arg_index]);
             arg_index += 1;
         } else if (ch == '#') {
             // string
-            try out.writeAll(args[arg_index]);
+            try writer.writeAll(args[arg_index]);
             arg_index += 1;
         } else if (ch == '<') {
             // the maybe_source_range that was passed in
             if (maybe_source_range) |source_range| {
-                try printSourceRange(out, contents, source_range);
+                try printSourceRange(writer, contents, source_range);
             } else {
-                try out.writeByte('?');
+                try writer.writeByte('?');
             }
         } else if (ch == '|') {
             // list of enum values
             const values: []const BuiltinEnumValue = args[arg_index];
             for (values) |value, i| {
-                if (i > 0) try out.writeAll(", ");
-                try out.writeByte('\'');
-                try out.writeAll(value.label);
-                try out.writeByte('\'');
+                if (i > 0) try writer.writeAll(", ");
+                try writer.writeByte('\'');
+                try writer.writeAll(value.label);
+                try writer.writeByte('\'');
                 switch (value.payload_type) {
                     .none => {},
-                    .f32 => try out.writeAll("(number)"),
+                    .f32 => try writer.writeAll("(number)"),
                 }
             }
             arg_index += 1;
         } else {
-            try out.writeByte(ch);
+            try writer.writeByte(ch);
         }
     }
 }
