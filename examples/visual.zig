@@ -277,23 +277,35 @@ pub const DrawSpectrum = struct {
         defer self.state = .up_to_date;
 
         const background_color: u32 = 0x00000000;
-        const color: u32 = 0xFF444444;
 
         var i: usize = 0;
         while (i < self.width) : (i += 1) {
             const fi = @intToFloat(f32, i) / @intToFloat(f32, self.width - 1);
             const fv = getFFTValue(fi, self.fft_out, self.logarithmic) * @intToFloat(f32, self.height);
 
-            const value = @floatToInt(u32, std.math.floor(fv));
-            const value_clipped = std.math.min(value, self.height - 1);
+            // where the graph will transition from background to foreground color
+            var new_y: u32 = undefined;
+            // antaliasing between background_color and color
+            var transition_color: u32 = undefined;
+            var color: u32 = undefined;
 
-            // new_y is where the graph will transition from background to foreground color
-            const new_y = @intCast(u32, self.height - value_clipped);
+            if (fv != fv) {
+                // show NaNs as a 1px tall red line
+                new_y = @intCast(u32, self.height - 1);
+                transition_color = 0xFFFF0000;
+                color = 0xFFFF0000;
+            } else {
+                const value = @floatToInt(u32, std.math.floor(fv));
+                const value_clipped = std.math.min(value, self.height - 1);
 
-            // the transition pixel will have a blended color value
-            const frac = fv - std.math.floor(fv);
-            const co: u32 = @floatToInt(u32, 0x44 * frac);
-            const transition_color = @as(u32, 0xFF000000) | (co << 16) | (co << 8) | co;
+                new_y = @intCast(u32, self.height - value_clipped);
+
+                // the transition pixel will have a blended color value
+                const frac = fv - std.math.floor(fv);
+                const co: u32 = @floatToInt(u32, 0x44 * frac);
+                transition_color = @as(u32, 0xFF000000) | (co << 16) | (co << 8) | co;
+                color = 0xFF444444;
+            }
 
             const sx = self.x + i;
             var sy = self.y;
@@ -406,10 +418,18 @@ pub const DrawSpectrumFull = struct {
             const f = @intToFloat(f32, i) / @intToFloat(f32, self.height - 1);
             const fft_value = getFFTValue(f, self.fft_real, logarithmic);
 
-            // sqrt is a kludge to make things more visible
-            const v = std.math.sqrt(std.math.fabs(fft_value) * (1.0 / 1024.0));
+            var color: u32 = undefined;
 
-            self.buffer[(self.height - 1 - i) * self.width + self.drawindex] = hslToRgb(v, 1.0, 0.5);
+            if (fft_value != fft_value) {
+                // NaN
+                color = 0xFFFF0000;
+            } else {
+                // sqrt is a kludge to make things more visible
+                const v = std.math.sqrt(std.math.fabs(fft_value) * (1.0 / 1024.0));
+                color = hslToRgb(v, 1.0, 0.5);
+            }
+
+            self.buffer[(self.height - 1 - i) * self.width + self.drawindex] = color;
         }
 
         self.drawindex += 1;
@@ -480,47 +500,60 @@ pub const DrawWaveform = struct {
         sample_max *= mul;
 
         const y_mid = self.height / 2;
-        const fy_mid = @intToFloat(f32, y_mid);
-        const fy_max = @intToFloat(f32, self.height - 1);
-        const y0 = @floatToInt(usize, std.math.clamp(fy_mid - sample_max * fy_mid, 0, fy_max) + 0.5);
-        const y1 = @floatToInt(usize, std.math.clamp(fy_mid - sample_min * fy_mid, 0, fy_max) + 0.5);
         var sx = self.drawindex;
         var sy: usize = 0;
-        var until: usize = undefined;
 
-        if (sample_max >= 1.0) {
+        if (sample_min != sample_min or sample_max != sample_max) {
+            // show NaN as a red center line
+            while (sy < y_mid) : (sy += 1) {
+                self.buffer[sy * self.width + sx] = background_color;
+            }
             self.buffer[sy * self.width + sx] = clipped_color;
             sy += 1;
-        }
-        until = std.math.min(y0, y_mid);
-        while (sy < until) : (sy += 1) {
-            self.buffer[sy * self.width + sx] = background_color;
-        }
-        until = std.math.min(y1, y_mid);
-        while (sy < until) : (sy += 1) {
-            self.buffer[sy * self.width + sx] = waveform_color;
-        }
-        while (sy < y_mid) : (sy += 1) {
-            self.buffer[sy * self.width + sx] = background_color;
-        }
-        self.buffer[sy * self.width + sx] = center_line_color;
-        sy += 1;
-        if (y0 > y_mid) {
-            until = std.math.min(y0, self.height);
+            while (sy < self.height) : (sy += 1) {
+                self.buffer[sy * self.width + sx] = background_color;
+            }
+        } else {
+            const fy_mid = @intToFloat(f32, y_mid);
+            const fy_max = @intToFloat(f32, self.height - 1);
+            const y0 = @floatToInt(usize, std.math.clamp(fy_mid - sample_max * fy_mid, 0, fy_max) + 0.5);
+            const y1 = @floatToInt(usize, std.math.clamp(fy_mid - sample_min * fy_mid, 0, fy_max) + 0.5);
+            var until: usize = undefined;
+
+            if (sample_max >= 1.0) {
+                self.buffer[sy * self.width + sx] = clipped_color;
+                sy += 1;
+            }
+            until = std.math.min(y0, y_mid);
             while (sy < until) : (sy += 1) {
                 self.buffer[sy * self.width + sx] = background_color;
             }
-        }
-        until = std.math.min(y1, self.height);
-        while (sy < until) : (sy += 1) {
-            self.buffer[sy * self.width + sx] = waveform_color;
-        }
-        while (sy < self.height) : (sy += 1) {
-            self.buffer[sy * self.width + sx] = background_color;
-        }
-        if (sample_min <= -1.0) {
-            sy -= 1;
-            self.buffer[sy * self.width + sx] = clipped_color;
+            until = std.math.min(y1, y_mid);
+            while (sy < until) : (sy += 1) {
+                self.buffer[sy * self.width + sx] = waveform_color;
+            }
+            while (sy < y_mid) : (sy += 1) {
+                self.buffer[sy * self.width + sx] = background_color;
+            }
+            self.buffer[sy * self.width + sx] = center_line_color;
+            sy += 1;
+            if (y0 > y_mid) {
+                until = std.math.min(y0, self.height);
+                while (sy < until) : (sy += 1) {
+                    self.buffer[sy * self.width + sx] = background_color;
+                }
+            }
+            until = std.math.min(y1, self.height);
+            while (sy < until) : (sy += 1) {
+                self.buffer[sy * self.width + sx] = waveform_color;
+            }
+            while (sy < self.height) : (sy += 1) {
+                self.buffer[sy * self.width + sx] = background_color;
+            }
+            if (sample_min <= -1.0) {
+                sy -= 1;
+                self.buffer[sy * self.width + sx] = clipped_color;
+            }
         }
 
         self.dirty = true;
@@ -696,7 +729,19 @@ pub const DrawOscilloscope = struct {
         while (i < self.width) : (i += 1) {
             const sx = self.x + i;
             const sample = std.math.max(-1.0, std.math.min(1.0, self.samples[i] * self.mul));
-            const y = @floatToInt(usize, @intToFloat(f32, y_mid) - sample * @intToFloat(f32, self.height / 2) + 0.5);
+
+            var y: usize = undefined;
+            var color: u32 = undefined;
+
+            if (sample != sample) {
+                // NaN - 1px red line in the center
+                y = self.height / 2;
+                color = 0xFFFF0000;
+            } else {
+                y = @floatToInt(usize, @intToFloat(f32, y_mid) - sample * @intToFloat(f32, self.height / 2) + 0.5);
+                color = waveform_color;
+            }
+
             const y_0 = if (i == 0) y else old_y;
             const y_1 = y;
             const y0 = std.math.min(y_0, y_1);
@@ -707,7 +752,7 @@ pub const DrawOscilloscope = struct {
                     screen.pixels[(self.y + sy) * screen.pitch + sx] = background_color;
                 }
                 while (sy < y1) : (sy += 1) {
-                    screen.pixels[(self.y + sy) * screen.pitch + sx] = waveform_color;
+                    screen.pixels[(self.y + sy) * screen.pitch + sx] = color;
                 }
                 while (sy < self.height) : (sy += 1) {
                     screen.pixels[(self.y + sy) * screen.pitch + sx] = background_color;
@@ -720,7 +765,7 @@ pub const DrawOscilloscope = struct {
                 }
                 sy = y0;
                 while (sy < y1) : (sy += 1) {
-                    screen.pixels[(self.y + sy) * screen.pitch + sx] = waveform_color;
+                    screen.pixels[(self.y + sy) * screen.pitch + sx] = color;
                 }
             }
             self.painted_spans[i] = .{ .y0 = y0, .y1 = y1 };
