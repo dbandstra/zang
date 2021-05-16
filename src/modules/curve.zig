@@ -6,11 +6,6 @@ pub const InterpolationFunction = enum {
     smoothstep,
 };
 
-pub const Node = struct {
-    value: f32,
-    t: f32,
-};
-
 // curves are like notes except the value will be interpolated in between them.
 // they can't be created in real-time
 const CurveSpanNode = struct {
@@ -34,7 +29,7 @@ pub const num_temps = 0;
 pub const Params = struct {
     sample_rate: f32,
     function: InterpolationFunction,
-    curve: []const Node,
+    curve: []const zang.CurveNode,
 };
 
 // progress through the curve, in seconds
@@ -134,7 +129,7 @@ fn getCurveSpanNodes(
     self: *@This(),
     sample_rate: f32,
     out_len: usize,
-    curve_nodes: []const Node,
+    curve_nodes: []const zang.CurveNode,
 ) []CurveSpanNode {
     var count: usize = 0;
 

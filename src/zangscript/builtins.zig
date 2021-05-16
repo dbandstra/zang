@@ -106,7 +106,7 @@ fn getBuiltinParamType(comptime T: type) ParamType {
         f32 => .constant,
         []const f32 => .buffer,
         zang.ConstantOrBuffer => .constant_or_buffer,
-        []const mod.Curve.Node => .curve,
+        []const zang.CurveNode => .curve,
         else => switch (@typeInfo(T)) {
             .Enum, .Union => return .{ .one_of = getBuiltinEnum(T) },
             else => @compileError("unsupported builtin field type: " ++ @typeName(T)),

@@ -34,3 +34,6 @@ pub const Painter = painter.Painter;
 
 const delay = @import("zang/delay.zig");
 pub const Delay = delay.Delay;
+
+const curve = @import("zang/curve.zig");
+pub const CurveNode = curve.CurveNode;

@@ -56,7 +56,6 @@ test "example test" {
         \\
         \\const std = @import("std");
         \\const zang = @import("zang");
-        \\const modules = @import("modules");
         \\
         \\pub const Instrument = _module0;
         \\
