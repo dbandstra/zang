@@ -36,6 +36,18 @@ pub fn build(b: *std.build.Builder) void {
         b.step(name, "Build example '" ++ name ++ "'").dependOn(&example(b, name).step);
     }
     b.step("zangc", "Build zangscript compiler").dependOn(&zangc(b).step);
+
+    {
+        const step = b.step("all", "Build everything");
+        inline for (examples_to_run) |name| {
+            step.dependOn(&example(b, name).step);
+        }
+        inline for (examples_to_build) |name| {
+            step.dependOn(&example(b, name).step);
+        }
+        step.dependOn(&writeWav(b).step);
+        step.dependOn(&zangc(b).step);
+    }
 }
 
 fn example(
