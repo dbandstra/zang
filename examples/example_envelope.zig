@@ -1,5 +1,6 @@
 const zang = @import("zang");
 const note_frequencies = @import("zang-12tet");
+const mod = @import("modules");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
 
@@ -25,13 +26,13 @@ pub const Instrument = struct {
         note_on: bool,
     };
 
-    osc: zang.PulseOsc,
-    env: zang.Envelope,
+    osc: mod.PulseOsc,
+    env: mod.Envelope,
 
     pub fn init() Instrument {
         return .{
-            .osc = zang.PulseOsc.init(),
-            .env = zang.Envelope.init(),
+            .osc = mod.PulseOsc.init(),
+            .env = mod.Envelope.init(),
         };
     }
 

@@ -1,5 +1,6 @@
 const std = @import("std");
 const zang = @import("../zang.zig");
+const mod = @import("../modules.zig");
 const Source = @import("tokenize.zig").Source;
 const BuiltinPackage = @import("builtins.zig").BuiltinPackage;
 const BuiltinEnumValue = @import("builtins.zig").BuiltinEnumValue;
@@ -30,7 +31,7 @@ pub const Value = union(enum) {
     buffer: []const f32,
     cob: zang.ConstantOrBuffer,
     boolean: bool,
-    curve: []const zang.CurveNode,
+    curve: []const mod.Curve.Node,
     one_of: struct { label: []const u8, payload: ?f32 },
 
     // turn a Value into a zig value
@@ -52,7 +53,7 @@ pub const Value = union(enum) {
                 .cob => |v| return v,
                 else => unreachable,
             },
-            []const zang.CurveNode => switch (value) {
+            []const mod.Curve.Node => switch (value) {
                 .curve => |v| return v,
                 else => unreachable,
             },
@@ -100,7 +101,7 @@ pub const Value = union(enum) {
             .buffer => if (@TypeOf(zig_value) == []const f32) return Value{ .buffer = zig_value },
             .constant => if (@TypeOf(zig_value) == f32) return Value{ .constant = zig_value },
             .constant_or_buffer => if (@TypeOf(zig_value) == zang.ConstantOrBuffer) return Value{ .cob = zig_value },
-            .curve => if (@TypeOf(zig_value) == []const zang.CurveNode) return Value{ .curve = zig_value },
+            .curve => if (@TypeOf(zig_value) == []const mod.Curve.Node) return Value{ .curve = zig_value },
             .one_of => |builtin_enum| {
                 switch (@typeInfo(@TypeOf(zig_value))) {
                     .Enum => |enum_info| {
@@ -197,6 +198,8 @@ pub fn initModule(
             inline for (builtin_packages) |pkg| {
                 const package = if (comptime std.mem.eql(u8, pkg.zig_import_path, "zang"))
                     @import("../zang.zig")
+                else if (comptime std.mem.eql(u8, pkg.zig_import_path, "modules"))
+                    @import("../modules.zig")
                 else
                     @import("../../" ++ pkg.zig_import_path);
 
@@ -282,7 +285,7 @@ const ScriptModule = struct {
     base: ModuleBase,
     allocator: *std.mem.Allocator,
     script: *const CompiledScript,
-    curve_points: []zang.CurveNode, // TODO shouldn't be per module. runtime should have something around CompiledScript with additions
+    curve_points: []mod.Curve.Node, // TODO shouldn't be per module. runtime should have something around CompiledScript with additions
     curves: []ScriptCurve,
     module_index: usize,
     module_instances: []*ModuleBase,
@@ -321,7 +324,7 @@ const ScriptModule = struct {
             for (script.curves) |curve| count += curve.points.len;
             break :blk count;
         };
-        self.curve_points = try allocator.alloc(zang.CurveNode, num_curve_points);
+        self.curve_points = try allocator.alloc(mod.Curve.Node, num_curve_points);
         errdefer allocator.free(self.curve_points);
         self.curves = try allocator.alloc(ScriptCurve, script.curves.len);
         errdefer allocator.free(self.curves);
@@ -797,7 +800,7 @@ const ScriptModule = struct {
         };
     }
 
-    fn getResultAsCurve(self: *const ScriptModule, p: PaintArgs, result: ExpressionResult) []const zang.CurveNode {
+    fn getResultAsCurve(self: *const ScriptModule, p: PaintArgs, result: ExpressionResult) []const mod.Curve.Node {
         return switch (result) {
             .literal_curve => |curve_index| {
                 const curve = self.curves[curve_index];

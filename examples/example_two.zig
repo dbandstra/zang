@@ -1,5 +1,6 @@
 const std = @import("std");
 const zang = @import("zang");
+const mod = @import("modules");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
 
@@ -32,8 +33,8 @@ pub const MainModule = struct {
 
     first: bool,
 
-    osc: zang.TriSawOsc,
-    env: zang.Envelope,
+    osc: mod.TriSawOsc,
+    env: mod.Envelope,
 
     key0: ?i32,
     iq0: zang.Notes(Params0).ImpulseQueue,
@@ -48,8 +49,8 @@ pub const MainModule = struct {
     pub fn init() MainModule {
         return .{
             .first = true,
-            .osc = zang.TriSawOsc.init(),
-            .env = zang.Envelope.init(),
+            .osc = mod.TriSawOsc.init(),
+            .env = mod.Envelope.init(),
             .key0 = null,
             .iq0 = zang.Notes(Params0).ImpulseQueue.init(),
             .idgen0 = zang.IdGenerator.init(),

@@ -48,6 +48,7 @@ fn example(
     o.addPackagePath("zig-wav", "examples/zig-wav/wav.zig");
     o.addPackagePath("zang", "src/zang.zig");
     o.addPackagePath("zang-12tet", "src/zang-12tet.zig");
+    o.addPackagePath("modules", "src/modules.zig");
     o.addPackagePath("zangscript", "src/zangscript.zig");
     o.addBuildOption([]const u8, "example", "example_" ++ name ++ ".zig");
     o.linkSystemLibrary("SDL2");
@@ -62,6 +63,7 @@ fn writeWav(b: *std.build.Builder) *std.build.LibExeObjStep {
     o.addPackagePath("zig-wav", "examples/zig-wav/wav.zig");
     o.addPackagePath("zang", "src/zang.zig");
     o.addPackagePath("zang-12tet", "src/zang-12tet.zig");
+    o.addPackagePath("modules", "src/modules.zig");
     return o;
 }
 

@@ -1,4 +1,5 @@
 const zang = @import("zang");
+const mod = @import("modules");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
 
@@ -25,16 +26,16 @@ pub const Instrument = struct {
         note_on: bool,
     };
 
-    osc: zang.SineOsc,
-    env: zang.Envelope,
-    porta: zang.Portamento,
+    osc: mod.SineOsc,
+    env: mod.Envelope,
+    porta: mod.Portamento,
     prev_note_on: bool,
 
     pub fn init() Instrument {
         return .{
-            .osc = zang.SineOsc.init(),
-            .env = zang.Envelope.init(),
-            .porta = zang.Portamento.init(),
+            .osc = mod.SineOsc.init(),
+            .env = mod.Envelope.init(),
+            .porta = mod.Portamento.init(),
             .prev_note_on = false,
         };
     }

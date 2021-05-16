@@ -1,5 +1,6 @@
 const std = @import("std");
 const zang = @import("zang");
+const mod = @import("modules");
 const wav = @import("zig-wav");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
@@ -22,7 +23,7 @@ pub const DESCRIPTION =
     \\Press 'd' to toggle distortion.
 ;
 
-fn readWav(comptime filename: []const u8) !zang.Sample {
+fn readWav(comptime filename: []const u8) !mod.Sampler.Sample {
     const buf = @embedFile(filename);
     var fbs = std.io.fixedBufferStream(buf);
     var stream = fbs.inStream();
@@ -31,7 +32,7 @@ fn readWav(comptime filename: []const u8) !zang.Sample {
 
     // don't call Loader.load because we're working on a slice, so we can just
     // take a subslice of it
-    return zang.Sample{
+    return mod.Sampler.Sample{
         .num_channels = preloaded.num_channels,
         .sample_rate = preloaded.sample_rate,
         .format = switch (preloaded.format) {
@@ -51,12 +52,12 @@ pub const MainModule = struct {
     pub const output_audio = common.AudioOut{ .mono = 0 };
     pub const output_visualize = 0;
 
-    sample: zang.Sample,
-    iq: zang.Notes(zang.Sampler.Params).ImpulseQueue,
+    sample: mod.Sampler.Sample,
+    iq: zang.Notes(mod.Sampler.Params).ImpulseQueue,
     idgen: zang.IdGenerator,
-    sampler: zang.Sampler,
-    trigger: zang.Trigger(zang.Sampler.Params),
-    distortion: zang.Distortion,
+    sampler: mod.Sampler,
+    trigger: zang.Trigger(mod.Sampler.Params),
+    distortion: mod.Distortion,
     r: std.rand.Xoroshiro128,
     distort: bool,
     first: bool,
@@ -64,11 +65,11 @@ pub const MainModule = struct {
     pub fn init() MainModule {
         return .{
             .sample = readWav("drumloop.wav") catch unreachable,
-            .iq = zang.Notes(zang.Sampler.Params).ImpulseQueue.init(),
+            .iq = zang.Notes(mod.Sampler.Params).ImpulseQueue.init(),
             .idgen = zang.IdGenerator.init(),
-            .sampler = zang.Sampler.init(),
-            .trigger = zang.Trigger(zang.Sampler.Params).init(),
-            .distortion = zang.Distortion.init(),
+            .sampler = mod.Sampler.init(),
+            .trigger = zang.Trigger(mod.Sampler.Params).init(),
+            .distortion = mod.Distortion.init(),
             .r = std.rand.DefaultPrng.init(0),
             .distort = false,
             .first = true,

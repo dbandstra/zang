@@ -2,6 +2,7 @@
 // own voice that is always running. well, it works
 
 const zang = @import("zang");
+const mod = @import("modules");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
 const Instrument = @import("modules.zig").NiceInstrument;
@@ -107,7 +108,7 @@ pub const MainModule = struct {
     idgen: zang.IdGenerator,
     polyphony: Polyphony,
     trigger: zang.Trigger(Polyphony.Params),
-    dec: zang.Decimator,
+    dec: mod.Decimator,
     dec_mode: u32,
 
     pub fn init() MainModule {
@@ -120,7 +121,7 @@ pub const MainModule = struct {
             .idgen = zang.IdGenerator.init(),
             .polyphony = Polyphony.init(),
             .trigger = zang.Trigger(Polyphony.Params).init(),
-            .dec = zang.Decimator.init(),
+            .dec = mod.Decimator.init(),
             .dec_mode = 0,
         };
     }

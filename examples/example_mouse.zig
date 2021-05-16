@@ -1,4 +1,5 @@
 const zang = @import("zang");
+const mod = @import("modules");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
 const PhaseModOscillator = @import("modules.zig").PhaseModOscillator;
@@ -33,12 +34,12 @@ const PMOscInstrument = struct {
     };
 
     osc: PhaseModOscillator,
-    env: zang.Envelope,
+    env: mod.Envelope,
 
     pub fn init() PMOscInstrument {
         return .{
             .osc = PhaseModOscillator.init(),
-            .env = zang.Envelope.init(),
+            .env = mod.Envelope.init(),
         };
     }
 
@@ -93,7 +94,7 @@ pub const MainModule = struct {
         iq: zang.Notes(Params).ImpulseQueue,
         idgen: zang.IdGenerator,
 
-        mod: zang.Portamento,
+        mod: mod.Portamento,
         trig: zang.Trigger(Params),
     };
 
@@ -122,13 +123,13 @@ pub const MainModule = struct {
             .ratio = .{
                 .iq = zang.Notes(Porta.Params).ImpulseQueue.init(),
                 .idgen = zang.IdGenerator.init(),
-                .mod = zang.Portamento.init(),
+                .mod = mod.Portamento.init(),
                 .trig = zang.Trigger(Porta.Params).init(),
             },
             .multiplier = .{
                 .iq = zang.Notes(Porta.Params).ImpulseQueue.init(),
                 .idgen = zang.IdGenerator.init(),
-                .mod = zang.Portamento.init(),
+                .mod = mod.Portamento.init(),
                 .trig = zang.Trigger(Porta.Params).init(),
             },
         };

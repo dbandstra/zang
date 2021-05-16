@@ -1,5 +1,6 @@
 const std = @import("std");
 const zang = @import("zang");
+const mod = @import("modules");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
 
@@ -18,19 +19,19 @@ pub const DESCRIPTION =
     \\effects based on the same module.
 ;
 
-const carrier_curve = [_]zang.CurveNode{
+const carrier_curve = [_]mod.Curve.Node{
     .{ .t = 0.0, .value = 1000.0 },
     .{ .t = 0.1, .value = 200.0 },
     .{ .t = 0.2, .value = 100.0 },
 };
 
-const modulator_curve = [_]zang.CurveNode{
+const modulator_curve = [_]mod.Curve.Node{
     .{ .t = 0.0, .value = 1000.0 },
     .{ .t = 0.1, .value = 200.0 },
     .{ .t = 0.2, .value = 100.0 },
 };
 
-const volume_curve = [_]zang.CurveNode{
+const volume_curve = [_]mod.Curve.Node{
     .{ .t = 0.0, .value = 0.0 },
     .{ .t = 0.004, .value = 1.0 },
     .{ .t = 0.2, .value = 0.0 },
@@ -47,19 +48,19 @@ const LaserPlayer = struct {
         modulator_rad: f32,
     };
 
-    carrier_curve: zang.Curve,
-    carrier: zang.SineOsc,
-    modulator_curve: zang.Curve,
-    modulator: zang.SineOsc,
-    volume_curve: zang.Curve,
+    carrier_curve: mod.Curve,
+    carrier: mod.SineOsc,
+    modulator_curve: mod.Curve,
+    modulator: mod.SineOsc,
+    volume_curve: mod.Curve,
 
     fn init() LaserPlayer {
         return .{
-            .carrier_curve = zang.Curve.init(),
-            .carrier = zang.SineOsc.init(),
-            .modulator_curve = zang.Curve.init(),
-            .modulator = zang.SineOsc.init(),
-            .volume_curve = zang.Curve.init(),
+            .carrier_curve = mod.Curve.init(),
+            .carrier = mod.SineOsc.init(),
+            .modulator_curve = mod.Curve.init(),
+            .modulator = mod.SineOsc.init(),
+            .volume_curve = mod.Curve.init(),
         };
     }
 

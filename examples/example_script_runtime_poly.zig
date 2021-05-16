@@ -31,6 +31,7 @@ const custom_builtin_package = zangscript.BuiltinPackage{
 
 const builtin_packages = [_]zangscript.BuiltinPackage{
     zangscript.zang_builtin_package,
+    zangscript.modules_builtin_package,
     custom_builtin_package,
 };
 

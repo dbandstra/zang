@@ -1,4 +1,5 @@
 const zang = @import("zang");
+const mod = @import("modules");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
 
@@ -14,7 +15,7 @@ pub const DESCRIPTION =
     \\frequency of the key you press.
 ;
 
-const carrier_curve = [_]zang.CurveNode{
+const carrier_curve = [_]mod.Curve.Node{
     .{ .t = 0.0, .value = 440.0 },
     .{ .t = 0.5, .value = 880.0 },
     .{ .t = 1.0, .value = 110.0 },
@@ -23,7 +24,7 @@ const carrier_curve = [_]zang.CurveNode{
     .{ .t = 3.9, .value = 20.0 },
 };
 
-const modulator_curve = [_]zang.CurveNode{
+const modulator_curve = [_]mod.Curve.Node{
     .{ .t = 0.0, .value = 110.0 },
     .{ .t = 1.5, .value = 55.0 },
     .{ .t = 3.0, .value = 220.0 },
@@ -37,17 +38,17 @@ const CurvePlayer = struct {
         rel_freq: f32,
     };
 
-    carrier_curve: zang.Curve,
-    carrier: zang.SineOsc,
-    modulator_curve: zang.Curve,
-    modulator: zang.SineOsc,
+    carrier_curve: mod.Curve,
+    carrier: mod.SineOsc,
+    modulator_curve: mod.Curve,
+    modulator: mod.SineOsc,
 
     fn init() CurvePlayer {
         return .{
-            .carrier_curve = zang.Curve.init(),
-            .carrier = zang.SineOsc.init(),
-            .modulator_curve = zang.Curve.init(),
-            .modulator = zang.SineOsc.init(),
+            .carrier_curve = mod.Curve.init(),
+            .carrier = mod.SineOsc.init(),
+            .modulator_curve = mod.Curve.init(),
+            .modulator = mod.SineOsc.init(),
         };
     }
 

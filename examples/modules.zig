@@ -1,5 +1,6 @@
 const std = @import("std");
 const zang = @import("zang");
+const mod = @import("modules");
 const note_frequencies = @import("zang-12tet");
 
 pub const PhaseModOscillator = struct {
@@ -20,13 +21,13 @@ pub const PhaseModOscillator = struct {
         multiplier: zang.ConstantOrBuffer,
     };
 
-    carrier: zang.SineOsc,
-    modulator: zang.SineOsc,
+    carrier: mod.SineOsc,
+    modulator: mod.SineOsc,
 
     pub fn init() PhaseModOscillator {
         return .{
-            .carrier = zang.SineOsc.init(),
-            .modulator = zang.SineOsc.init(),
+            .carrier = mod.SineOsc.init(),
+            .modulator = mod.SineOsc.init(),
         };
     }
 
@@ -87,13 +88,13 @@ pub const PMOscInstrument = struct {
 
     release_duration: f32,
     osc: PhaseModOscillator,
-    env: zang.Envelope,
+    env: mod.Envelope,
 
     pub fn init(release_duration: f32) PMOscInstrument {
         return .{
             .release_duration = release_duration,
             .osc = PhaseModOscillator.init(),
-            .env = zang.Envelope.init(),
+            .env = mod.Envelope.init(),
         };
     }
 
@@ -135,15 +136,15 @@ pub const FilteredSawtoothInstrument = struct {
         note_on: bool,
     };
 
-    osc: zang.TriSawOsc,
-    env: zang.Envelope,
-    flt: zang.Filter,
+    osc: mod.TriSawOsc,
+    env: mod.Envelope,
+    flt: mod.Filter,
 
     pub fn init() FilteredSawtoothInstrument {
         return .{
-            .osc = zang.TriSawOsc.init(),
-            .env = zang.Envelope.init(),
-            .flt = zang.Filter.init(),
+            .osc = mod.TriSawOsc.init(),
+            .env = mod.Envelope.init(),
+            .flt = mod.Filter.init(),
         };
     }
 
@@ -176,7 +177,7 @@ pub const FilteredSawtoothInstrument = struct {
         self.flt.paint(span, .{outputs[0]}, .{}, note_id_changed, .{
             .input = temps[2],
             .type = .low_pass,
-            .cutoff = zang.constant(zang.cutoffFromFrequency(
+            .cutoff = zang.constant(mod.Filter.cutoffFromFrequency(
                 440.0 * note_frequencies.c5,
                 params.sample_rate,
             )),
@@ -195,16 +196,16 @@ pub const NiceInstrument = struct {
     };
 
     color: f32,
-    osc: zang.PulseOsc,
-    flt: zang.Filter,
-    env: zang.Envelope,
+    osc: mod.PulseOsc,
+    flt: mod.Filter,
+    env: mod.Envelope,
 
     pub fn init(color: f32) NiceInstrument {
         return .{
             .color = color,
-            .osc = zang.PulseOsc.init(),
-            .flt = zang.Filter.init(),
-            .env = zang.Envelope.init(),
+            .osc = mod.PulseOsc.init(),
+            .flt = mod.Filter.init(),
+            .env = mod.Envelope.init(),
         };
     }
 
@@ -227,7 +228,7 @@ pub const NiceInstrument = struct {
         self.flt.paint(span, .{temps[1]}, .{}, note_id_changed, .{
             .input = temps[0],
             .type = .low_pass,
-            .cutoff = zang.constant(zang.cutoffFromFrequency(
+            .cutoff = zang.constant(mod.Filter.cutoffFromFrequency(
                 params.freq * 8.0,
                 params.sample_rate,
             )),
@@ -255,13 +256,13 @@ pub const HardSquareInstrument = struct {
         note_on: bool,
     };
 
-    osc: zang.PulseOsc,
-    gate: zang.Gate,
+    osc: mod.PulseOsc,
+    gate: mod.Gate,
 
     pub fn init() HardSquareInstrument {
         return .{
-            .osc = zang.PulseOsc.init(),
-            .gate = zang.Gate.init(),
+            .osc = mod.PulseOsc.init(),
+            .gate = mod.Gate.init(),
         };
     }
 
@@ -297,14 +298,14 @@ pub const SquareWithEnvelope = struct {
     };
 
     weird: bool,
-    osc: zang.PulseOsc,
-    env: zang.Envelope,
+    osc: mod.PulseOsc,
+    env: mod.Envelope,
 
     pub fn init(weird: bool) SquareWithEnvelope {
         return .{
             .weird = weird,
-            .osc = zang.PulseOsc.init(),
-            .env = zang.Envelope.init(),
+            .osc = mod.PulseOsc.init(),
+            .env = mod.Envelope.init(),
         };
     }
 
@@ -392,12 +393,12 @@ pub fn FilteredEchoes(comptime DELAY_SAMPLES: usize) type {
         };
 
         delay: zang.Delay(DELAY_SAMPLES),
-        filter: zang.Filter,
+        filter: mod.Filter,
 
         pub fn init() @This() {
             return .{
                 .delay = zang.Delay(DELAY_SAMPLES).init(),
-                .filter = zang.Filter.init(),
+                .filter = mod.Filter.init(),
             };
         }
 

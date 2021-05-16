@@ -1,4 +1,5 @@
 const zang = @import("zang");
+const mod = @import("modules");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
 
@@ -48,13 +49,13 @@ const NoiseModule = struct {
         cutoff_frequency: f32,
     };
 
-    noise: zang.Noise,
-    flt: zang.Filter,
+    noise: mod.Noise,
+    flt: mod.Filter,
 
     fn init() NoiseModule {
         return .{
-            .noise = zang.Noise.init(),
-            .flt = zang.Filter.init(),
+            .noise = mod.Noise.init(),
+            .flt = mod.Filter.init(),
         };
     }
 
@@ -73,7 +74,7 @@ const NoiseModule = struct {
         self.flt.paint(span, .{temps[0]}, .{}, note_id_changed, .{
             .input = temps[1],
             .type = .low_pass,
-            .cutoff = zang.constant(zang.cutoffFromFrequency(
+            .cutoff = zang.constant(mod.Filter.cutoffFromFrequency(
                 params.cutoff_frequency,
                 params.sample_rate,
             )),
@@ -105,13 +106,13 @@ pub const MainModule = struct {
     pub const output_audio = common.AudioOut{ .stereo = .{ .left = 0, .right = 1 } };
     pub const output_visualize = 0;
 
-    osc: zang.SineOsc,
+    osc: mod.SineOsc,
     noisem0: NoiseModule,
     noisem1: NoiseModule,
 
     pub fn init() MainModule {
         return .{
-            .osc = zang.SineOsc.init(),
+            .osc = mod.SineOsc.init(),
             .noisem0 = NoiseModule.init(),
             .noisem1 = NoiseModule.init(),
         };

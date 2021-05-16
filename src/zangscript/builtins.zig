@@ -1,5 +1,6 @@
 const std = @import("std");
 const zang = @import("../zang.zig");
+const mod = @import("../modules.zig");
 const ModuleParam = @import("parse.zig").ModuleParam;
 const ParamType = @import("parse.zig").ParamType;
 
@@ -21,21 +22,28 @@ pub const BuiltinEnumValue = struct {
     payload_type: enum { none, f32 },
 };
 
-fn getBuiltinEnumFromEnumInfo(comptime typeName: []const u8, comptime enum_info: std.builtin.TypeInfo.Enum) BuiltinEnum {
+fn getBuiltinEnumFromEnumInfo(
+    name: []const u8,
+    zig_name: []const u8,
+    comptime enum_info: std.builtin.TypeInfo.Enum,
+) BuiltinEnum {
     comptime var values: [enum_info.fields.len]BuiltinEnumValue = undefined;
     inline for (enum_info.fields) |field, i| {
         values[i].label = field.name;
         values[i].payload_type = .none;
     }
     return .{
-        // assume it's one of the public enums (e.g. zang.FilterType)
-        .name = typeName,
-        .zig_name = "zang." ++ typeName,
+        .name = name,
+        .zig_name = zig_name,
         .values = &values,
     };
 }
 
-fn getBuiltinEnumFromUnionInfo(comptime typeName: []const u8, comptime union_info: std.builtin.TypeInfo.Union) BuiltinEnum {
+fn getBuiltinEnumFromUnionInfo(
+    name: []const u8,
+    zig_name: []const u8,
+    comptime union_info: std.builtin.TypeInfo.Union,
+) BuiltinEnum {
     comptime var values: [union_info.fields.len]BuiltinEnumValue = undefined;
     inline for (union_info.fields) |field, i| {
         values[i].label = field.name;
@@ -46,18 +54,44 @@ fn getBuiltinEnumFromUnionInfo(comptime typeName: []const u8, comptime union_inf
         };
     }
     return .{
-        // assume it's one of the public enums (e.g. zang.FilterType)
-        .name = typeName,
-        .zig_name = "zang." ++ typeName,
+        .name = name,
+        .zig_name = zig_name,
         .values = &values,
     };
 }
 
 fn getBuiltinEnum(comptime T: type) BuiltinEnum {
+    var name: []const u8 = undefined;
+    var zig_name: []const u8 = undefined;
+
+    switch (T) {
+        zang.PaintCurve => {
+            name = "PaintCurve";
+            zig_name = "zang.PaintCurve";
+        },
+        mod.Curve.InterpolationFunction => {
+            name = "InterpolationFunction";
+            zig_name = "mod.Curve.InterpolationFunction";
+        },
+        mod.Distortion.Type => {
+            name = "DistortionType";
+            zig_name = "mod.Distortion.Type";
+        },
+        mod.Filter.Type => {
+            name = "FilterType";
+            zig_name = "mod.Filter.Type";
+        },
+        mod.Noise.Color => {
+            name = "NoiseColor";
+            zig_name = "mod.Noise.Color";
+        },
+        else => @compileError("unsupported enum: " ++ @typeName(T)),
+    }
+
     switch (@typeInfo(T)) {
-        .Enum => |enum_info| return getBuiltinEnumFromEnumInfo(@typeName(T), enum_info),
-        .Union => |union_info| return getBuiltinEnumFromUnionInfo(@typeName(T), union_info),
-        else => @compileError("getBuiltinEnum: not an enum: " ++ @typeName(T)),
+        .Enum => |enum_info| return getBuiltinEnumFromEnumInfo(name, zig_name, enum_info),
+        .Union => |union_info| return getBuiltinEnumFromUnionInfo(name, zig_name, union_info),
+        else => @compileError("getBuiltinEnum: not an enum: " ++ zig_name),
     }
 }
 
@@ -72,10 +106,9 @@ fn getBuiltinParamType(comptime T: type) ParamType {
         f32 => .constant,
         []const f32 => .buffer,
         zang.ConstantOrBuffer => .constant_or_buffer,
-        []const zang.CurveNode => .curve,
+        []const mod.Curve.Node => .curve,
         else => switch (@typeInfo(T)) {
-            .Enum => |enum_info| return .{ .one_of = getBuiltinEnumFromEnumInfo(@typeName(T), enum_info) },
-            .Union => |union_info| return .{ .one_of = getBuiltinEnumFromUnionInfo(@typeName(T), union_info) },
+            .Enum, .Union => return .{ .one_of = getBuiltinEnum(T) },
             else => @compileError("unsupported builtin field type: " ++ @typeName(T)),
         },
     };
@@ -108,25 +141,34 @@ pub const BuiltinPackage = struct {
 pub const zang_builtin_package = BuiltinPackage{
     .zig_package_name = "zang",
     .zig_import_path = "zang",
+    .builtins = &[_]BuiltinModule{},
+    .enums = &[_]BuiltinEnum{
+        getBuiltinEnum(zang.PaintCurve),
+    },
+};
+
+pub const modules_builtin_package = BuiltinPackage{
+    .zig_package_name = "mod",
+    .zig_import_path = "modules",
     .builtins = &[_]BuiltinModule{
-        getBuiltinModule(zang.Curve),
-        getBuiltinModule(zang.Cycle),
-        getBuiltinModule(zang.Decimator),
-        getBuiltinModule(zang.Distortion),
-        getBuiltinModule(zang.Envelope),
-        getBuiltinModule(zang.Filter),
-        getBuiltinModule(zang.Gate),
-        getBuiltinModule(zang.Noise),
-        getBuiltinModule(zang.Portamento),
-        getBuiltinModule(zang.PulseOsc),
-        // zang.Sampler
-        getBuiltinModule(zang.SineOsc),
-        getBuiltinModule(zang.TriSawOsc),
+        getBuiltinModule(mod.Curve),
+        getBuiltinModule(mod.Cycle),
+        getBuiltinModule(mod.Decimator),
+        getBuiltinModule(mod.Distortion),
+        getBuiltinModule(mod.Envelope),
+        getBuiltinModule(mod.Filter),
+        getBuiltinModule(mod.Gate),
+        getBuiltinModule(mod.Noise),
+        getBuiltinModule(mod.Portamento),
+        getBuiltinModule(mod.PulseOsc),
+        // mod.Sampler
+        getBuiltinModule(mod.SineOsc),
+        getBuiltinModule(mod.TriSawOsc),
     },
     .enums = &[_]BuiltinEnum{
-        getBuiltinEnum(zang.DistortionType),
-        getBuiltinEnum(zang.FilterType),
-        getBuiltinEnum(zang.NoiseColor),
-        getBuiltinEnum(zang.PaintCurve),
+        getBuiltinEnum(mod.Curve.InterpolationFunction),
+        getBuiltinEnum(mod.Distortion.Type),
+        getBuiltinEnum(mod.Filter.Type),
+        getBuiltinEnum(mod.Noise.Color),
     },
 };

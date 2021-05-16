@@ -1,5 +1,6 @@
 const std = @import("std");
 const zang = @import("zang");
+const mod = @import("modules");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
 const StereoEchoes = @import("modules.zig").StereoEchoes(15000);
@@ -37,15 +38,15 @@ pub const Instrument = struct {
         note_on: bool,
     };
 
-    osc: zang.TriSawOsc,
-    env: zang.Envelope,
-    main_filter: zang.Filter,
+    osc: mod.TriSawOsc,
+    env: mod.Envelope,
+    main_filter: mod.Filter,
 
     pub fn init() Instrument {
         return .{
-            .osc = zang.TriSawOsc.init(),
-            .env = zang.Envelope.init(),
-            .main_filter = zang.Filter.init(),
+            .osc = mod.TriSawOsc.init(),
+            .env = mod.Envelope.init(),
+            .main_filter = mod.Filter.init(),
         };
     }
 
@@ -89,7 +90,7 @@ pub const Instrument = struct {
         self.main_filter.paint(span, .{outputs[0]}, .{}, note_id_changed, .{
             .input = temps[2],
             .type = .low_pass,
-            .cutoff = zang.constant(zang.cutoffFromFrequency(
+            .cutoff = zang.constant(mod.Filter.cutoffFromFrequency(
                 //params.freq + 400.0,
                 880.0,
                 params.sample_rate,
@@ -109,14 +110,14 @@ pub const OuterInstrument = struct {
         mode: u32,
     };
 
-    noise: zang.Noise,
-    noise_filter: zang.Filter,
+    noise: mod.Noise,
+    noise_filter: mod.Filter,
     inner: Instrument,
 
     pub fn init() OuterInstrument {
         return .{
-            .noise = zang.Noise.init(),
-            .noise_filter = zang.Filter.init(),
+            .noise = mod.Noise.init(),
+            .noise_filter = mod.Filter.init(),
             .inner = Instrument.init(),
         };
     }
@@ -141,7 +142,7 @@ pub const OuterInstrument = struct {
         self.noise_filter.paint(span, .{temps[0]}, .{}, note_id_changed, .{
             .input = temps[1],
             .type = .low_pass,
-            .cutoff = zang.constant(zang.cutoffFromFrequency(
+            .cutoff = zang.constant(mod.Filter.cutoffFromFrequency(
                 4.0,
                 params.sample_rate,
             )),

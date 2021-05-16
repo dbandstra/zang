@@ -174,8 +174,9 @@ fn mainInner(stderr: *std.fs.File.OutStream) !void {
     var custom_builtins_arena = std.heap.ArenaAllocator.init(allocator);
     defer custom_builtins_arena.deinit();
 
-    // add default builtin package
+    // add default builtin packages
     try builtin_packages.append(zangscript.zang_builtin_package);
+    try builtin_packages.append(zangscript.modules_builtin_package);
 
     // add custom builtin packages, if any were passed
     for (options.builtin_filenames) |filename, i| {
