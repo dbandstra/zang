@@ -56,10 +56,11 @@ test "example test" {
         \\
         \\const std = @import("std");
         \\const zang = @import("zang");
+        \\const modules = @import("modules");
         \\
-        \\pub const Instrument = _module12;
+        \\pub const Instrument = _module0;
         \\
-        \\const _module12 = struct {
+        \\const _module0 = struct {
         \\    pub const num_outputs = 1;
         \\    pub const num_temps = 1;
         \\    pub const Params = struct {
@@ -71,12 +72,12 @@ test "example test" {
         \\    };
         \\
         \\
-        \\    pub fn init() _module12 {
+        \\    pub fn init() _module0 {
         \\        return .{
         \\        };
         \\    }
         \\
-        \\    pub fn paint(self: *_module12, span: zang.Span, outputs: [num_outputs][]f32, temps: [num_temps][]f32, note_id_changed: bool, params: Params) void {
+        \\    pub fn paint(self: *_module0, span: zang.Span, outputs: [num_outputs][]f32, temps: [num_temps][]f32, note_id_changed: bool, params: Params) void {
         \\        switch (params.freq) {
         \\            .constant => |v| zang.set(span, temps[0], v),
         \\            .buffer => |v| zang.copy(span, temps[0], v),
