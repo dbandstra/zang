@@ -11,21 +11,28 @@ const bytes_per_sample = switch (example.AUDIO_FORMAT) {
     .signed16_lsb => 2,
 };
 
-var g_outputs: [example.MainModule.num_outputs][example.AUDIO_BUFFER_SIZE]f32 = undefined;
-var g_temps: [example.MainModule.num_temps][example.AUDIO_BUFFER_SIZE]f32 = undefined;
-
-var g_mixbuf: [example.AUDIO_BUFFER_SIZE * bytes_per_sample * example.MainModule.num_outputs]u8 = undefined;
-
 pub fn main() !void {
+    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
+    const allocator = &gpa.allocator;
+
+    var output_arrays = try allocator.create([example.MainModule.num_temps][example.AUDIO_BUFFER_SIZE]f32);
+    defer allocator.destroy(output_arrays);
+
+    var temp_arrays = try allocator.create([example.MainModule.num_temps][example.AUDIO_BUFFER_SIZE]f32);
+    defer allocator.destroy(temp_arrays);
+
+    var mixbuf = try allocator.create([example.AUDIO_BUFFER_SIZE * bytes_per_sample * example.MainModule.num_outputs]u8);
+    defer allocator.destroy(mixbuf);
+
     var main_module = example.MainModule.init();
 
     var outputs: [example.MainModule.num_outputs][]f32 = undefined;
     for (outputs) |*output, i|
-        output.* = &g_outputs[i];
+        output.* = &output_arrays[i];
 
     var temps: [example.MainModule.num_temps][]f32 = undefined;
     for (temps) |*temp, i|
-        temp.* = &g_temps[i];
+        temp.* = &temp_arrays[i];
 
     const file = try std.fs.cwd().createFile("out.wav", .{});
     defer file.close();
@@ -62,7 +69,7 @@ pub fn main() !void {
 
         for (outputs) |output, i| {
             const m = bytes_per_sample * example.MainModule.num_outputs;
-            const out_slice = g_mixbuf[0 .. len * m];
+            const out_slice = mixbuf[0 .. len * m];
             zang.mixDown(
                 out_slice,
                 output[span.start..span.end],

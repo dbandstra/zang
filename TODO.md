@@ -1,5 +1,7 @@
 # zang todo
 
+Why is the `write_wav` executable 1.5MB even in ReleaseSmall, even with the progress bar stuff commented out? It should be like a couple of kilobytes. Is it the GeneralPurposeAllocator?
+
 ## New module: bitcrusher
 Make a module that lets you artificially alter the sample rate and resolution of the input stream.
 
