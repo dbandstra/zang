@@ -28,9 +28,6 @@ For example, if you have a long release duration, and you release the note at th
 
 I guess I need to run the attack/decay alongside the release, and take the `min` of them or something.
 
-## lo-fi zang
-Make a second library which has only basic modules and doesn't use floats. Share as much as possible (API design and possibly even code).
-
 ## PulseOsc with controlled frequency needs antialiasing
 
 ## TriSawOsc with controlled frequency needs total rewrite
