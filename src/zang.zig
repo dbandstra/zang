@@ -4,9 +4,6 @@ pub const Impulse = notes.Impulse;
 pub const Notes = notes.Notes;
 
 const trigger = @import("zang/trigger.zig");
-pub const ConstantOrBuffer = trigger.ConstantOrBuffer;
-pub const constant = trigger.constant;
-pub const buffer = trigger.buffer;
 pub const Trigger = trigger.Trigger;
 
 const mixdown = @import("zang/mixdown.zig");
@@ -37,3 +34,8 @@ pub const Delay = delay.Delay;
 
 const curve = @import("zang/curve.zig");
 pub const CurveNode = curve.CurveNode;
+
+const constant_or_buffer = @import("zang/constant_or_buffer.zig");
+pub const ConstantOrBuffer = constant_or_buffer.ConstantOrBuffer;
+pub const constant = constant_or_buffer.constant;
+pub const buffer = constant_or_buffer.buffer;

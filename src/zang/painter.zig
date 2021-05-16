@@ -1,7 +1,13 @@
+// Painter:
+// helper struct to paint a "direct current" style line that gradually moves
+// toward a destination value. useful for things like envelope, portamento, or
+// a low-frequency low-pass filter.
+
 const Span = @import("basics.zig").Span;
 const addScalarInto = @import("basics.zig").addScalarInto;
 
-// this is a struct to be used temporarily within a paint call.
+// this is a struct to be used temporarily within a single paint call.
+// you initialize one, then pass it to paintFlat/paintToward.
 pub const PaintState = struct {
     buf: []f32,
     i: usize,

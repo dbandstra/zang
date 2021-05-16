@@ -1,20 +1,27 @@
+// Trigger:
+// a stateful object, like an iterator. you feed ImpulsesAndParamses to it,
+// and it returns a sequence of NewPaintReturnValue objects, which represent
+// paint buffer spans that belong to a single note. there will be a new such
+// span every time a new note id appears in the ImpulsesAndParamses.
+//
+//   - span: Span,
+//   - params: (YourModule).Params,
+//   - note_id_changed: bool,
+//
+// note_id_changed is true if this span belongs to a note with a different id
+// from the previous span.
+//
+// Trigger is completely ignorant of "note_on" concept. note_on is considered
+// a higher-level concept and Trigger is a lower-level function.
+//
+// ImpulsesAndParamses is defined in notes.zig. it's just two parallel slices
+// of Impulse and (YourModule).Params. Impulse contains the note id and what
+// frame the event happened at.
+
 const std = @import("std");
 const Impulse = @import("notes.zig").Impulse;
 const Notes = @import("notes.zig").Notes;
 const Span = @import("basics.zig").Span;
-
-pub const ConstantOrBuffer = union(enum) {
-    constant: f32,
-    buffer: []const f32,
-};
-
-pub fn constant(x: f32) ConstantOrBuffer {
-    return .{ .constant = x };
-}
-
-pub fn buffer(buf: []const f32) ConstantOrBuffer {
-    return .{ .buffer = buf };
-}
 
 pub fn Trigger(comptime ParamsType: type) type {
     const NoteSpanNote = struct {

@@ -1,3 +1,39 @@
+// IdGenerator:
+// simple autoincrementing note id generator. one case this will not be
+// sufficient is polyphony, when you want note-off events to match up with
+// previous note-on events by having the same note id.
+//
+// Impulse:
+// a value that specifies a frame number, note_id, and event_id.
+// event_id is like note_id but always autoincrements. even with polyphony
+// where you match up note_ids, each impulse will still have a unique
+// event_id. event_id is used in the polyphony dispatcher, to implement
+// the voice slot reuse algorithm.
+//
+// ImpulseQueue:
+// an object which the outside world can push impulses to. this is how you
+// would implement sounds being triggered by user interaction. the `consume`
+// method returns an ImpulsesAndParamses object which can be fed to a Trigger,
+// and then empties the queue. note: fits a maximum of 32 events at a time
+// (according to the no-allocation policy of this library).
+// note: `consume` always clears the whole thing. when you push impulses, you
+// provide an "impulse_frame". you shouldn't pass an impulse_frame that would
+// go past the end of the buffer - i'm not sure what would happen in that
+// situation.
+
+// NoteTracker:
+// consume a "song" (list of SongEvents), returning ImpulsesAndParamses.
+// stateful tracking of its progress through the song. it's the counterpart of
+// ImpulseQueue, for "programmed" impulses rather than .
+
+// PolyphonyDispatcher:
+// implement polyphony with a fixed (compiletime-known) number of voices. note
+// that it only works if the (YourModule).Params contains a "note_on" field.
+// (this is the only part of the "zang" core library that looks at a "note_on"
+// field.) you call the `dispatch` method, passing an `ImpulsesAndParamses`
+// object, and it returns `[polyphony]ImpulsesAndParams`. every new note will
+// take over the "stalest" slot.
+
 const std = @import("std");
 
 // this can be used when pushing to an ImpulseQueue. it's all you need if you

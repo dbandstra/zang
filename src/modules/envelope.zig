@@ -72,17 +72,18 @@ fn paintOn(self: *@This(), buf: []f32, p: Params, new_note: bool) void {
     std.debug.assert(ps.i == buf.len);
 }
 
+// if note_on is false: set state to "release", paint towards 0, and when we
+// get there, set state to "idle".
 fn paintOff(self: *@This(), buf: []f32, p: Params) void {
     if (self.state == .idle) {
         return;
     }
 
-    var ps = zang.PaintState.init(buf, p.sample_rate);
-
     if (self.state != .release) {
         self.changeState(.release);
     }
 
+    var ps = zang.PaintState.init(buf, p.sample_rate);
     if (self.painter.paintToward(&ps, p.release, 0.0)) {
         self.changeState(.idle);
     }
