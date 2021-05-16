@@ -95,8 +95,8 @@ fn paintConstantFrequency(
     while (i < output.len) : (i += 1) {
         const p = utof23(cnt);
         state = ((state << 1) | @boolToInt(cnt < brpt)) & 3;
-        const s = state | (@as(u32, @boolToInt(cnt < ifreq)) << 2);
-        output[i] += switch (s) {
+        const transition = state | (@as(u32, @boolToInt(cnt < ifreq)) << 2);
+        output[i] += switch (transition) {
             0b011 => gain, // up
             0b000 => -gain, // down
             0b010 => gdf * 2.0 * (col - p) + gain, // up down
@@ -117,18 +117,38 @@ fn paintControlledFrequency(
     freq: []const f32,
     color: f32,
 ) void {
-    // TODO - implement antialiasing here
-    // TODO - add equivalent of the bad frequency check at the top of
-    // paintConstantFrequency
+    // same as above but with more stuff moved into the loop.
+    // farbrausch's code didn't support controlled frequency. hope i got it
+    // right.
     var cnt = self.cnt;
+
     const SRfcobasefrq = fc32bit / sample_rate;
     const brpt = ftou32(clamp01(color));
-    const gain: f32 = 0.7;
-    var i: usize = 0;
-    while (i < output.len) : (i += 1) {
-        const ifreq = @floatToInt(u32, SRfcobasefrq * freq[i]);
-        output[i] += if ((cnt -% ifreq) < brpt) gain else -gain;
+    const gain = 0.7;
+    const col = utof23(brpt);
+
+    for (freq) |s_freq, i| {
+        if (s_freq < 0 or s_freq > sample_rate / 8.0)
+            continue;
+        const ifreq = @floatToInt(u32, SRfcobasefrq * s_freq);
+        const gdf = gain / utof23(ifreq);
+        const cc121 = gdf * 2.0 * (col - 1.0) + gain;
+        const cc212 = gdf * 2.0 * col - gain;
+        const p = utof23(cnt);
+        const c: u32 = @boolToInt((cnt -% ifreq) < brpt);
+        const state: u32 = @boolToInt(cnt < brpt) | (c << 1);
+        const transition = state | (@as(u32, @boolToInt(cnt < ifreq)) << 2);
+        output[i] += switch (transition) {
+            0b011 => gain, // up
+            0b000 => -gain, // down
+            0b010 => gdf * 2.0 * (col - p) + gain, // up down
+            0b101 => gdf * 2.0 * p - gain, // down up
+            0b111 => cc121, // up down up
+            0b100 => cc212, // down up down
+            else => unreachable,
+        };
         cnt +%= ifreq;
     }
+
     self.cnt = cnt;
 }
