@@ -331,10 +331,7 @@ fn Voice(comptime T: type) type {
             outputs: [num_outputs][]f32,
             temps: [num_temps][]f32,
         ) void {
-            const iap = self.tracker.consume(
-                AUDIO_SAMPLE_RATE,
-                span.end - span.start,
-            );
+            const iap = self.tracker.consume(AUDIO_SAMPLE_RATE, span);
 
             const poly_iap = self.dispatcher.dispatch(iap);
 

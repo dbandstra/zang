@@ -35,6 +35,7 @@
 // take over the "stalest" slot.
 
 const std = @import("std");
+const Span = @import("basics.zig").Span;
 
 // this can be used when pushing to an ImpulseQueue. it's all you need if you
 // don't care about matching note-on and note-off events (which is only
@@ -161,10 +162,11 @@ pub fn Notes(comptime NoteParamsType: type) type {
             pub fn consume(
                 self: *NoteTracker,
                 sample_rate: f32,
-                out_len: usize,
+                span: Span,
             ) ImpulsesAndParamses {
                 var count: usize = 0;
 
+                const out_len = span.end - span.start;
                 const buf_time = @intToFloat(f32, out_len) / sample_rate;
                 var start_t = self.t;
                 const end_t = self.t + buf_time;
@@ -183,7 +185,7 @@ pub fn Notes(comptime NoteParamsType: type) type {
                         // self.impulse_array.len
                         self.next_song_event += 1;
                         self.impulses_array[count] = Impulse{
-                            .frame = rel_frame_index,
+                            .frame = span.start + rel_frame_index,
                             .note_id = song_event.note_id,
                             .event_id = self.next_song_event,
                         };

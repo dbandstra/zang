@@ -131,7 +131,7 @@ const SubtrackPlayer = struct {
             self.tracker.reset();
             self.trigger.reset();
         }
-        const iap = self.tracker.consume(params.sample_rate, span.end - span.start);
+        const iap = self.tracker.consume(params.sample_rate, span);
         var ctr = self.trigger.counter(span, iap);
         while (self.trigger.next(&ctr)) |result| {
             const new_note = (params.note_on and note_id_changed) or result.note_id_changed;

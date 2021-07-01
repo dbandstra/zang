@@ -377,7 +377,7 @@ fn State(comptime Writer: type) type {
                     try self.print("}}\n", .{});
 
                     // FIXME protect against division by zero?
-                    try self.print("const _iap{usize} = self.tracker{usize}.consume(params.sample_rate / {expression_result}, {str}.end - {str}.start);\n", .{ track_call.note_tracker_index, track_call.note_tracker_index, track_call.speed, span, span });
+                    try self.print("const _iap{usize} = self.tracker{usize}.consume(params.sample_rate / {expression_result}, {str});\n", .{ track_call.note_tracker_index, track_call.note_tracker_index, track_call.speed, span });
                     try self.print("var _ctr{usize} = self.trigger{usize}.counter({str}, _iap{usize});\n", .{ track_call.trigger_index, track_call.trigger_index, span, track_call.note_tracker_index });
                     try self.print("while (self.trigger{usize}.next(&_ctr{usize})) |_result| {{\n", .{ track_call.trigger_index, track_call.trigger_index });
 
