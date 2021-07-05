@@ -867,11 +867,11 @@ pub const DrawParameters = struct {
                 // can't do this in the fmt arg because of a compiler bug:
                 // https://github.com/ziglang/zig/issues/5230
                 const str: []const u8 = if (b) "=>" else "  ";
-                fbs.writer().print("\n{s}{: >2}. {s} {d:.1}", .{
+                fbs.writer().print("\n{s}{: >2}. {s} {d}", .{
                     str,
                     i + 1,
                     param.desc,
-                    param.value,
+                    param.current_value,
                 }) catch {};
             }
         }

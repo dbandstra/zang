@@ -8,7 +8,8 @@ pub const AudioOut = union(enum) {
 
 pub const Parameter = struct {
     desc: []const u8,
-    value: f32,
+    num_values: u32,
+    current_value: u32,
 };
 
 pub const KeyBinding = struct {

@@ -63,15 +63,13 @@ const Oscillator = struct {
             const phase = if (params.phase) |p| p[span.start + i] else 0;
             const feedback = (self.feedback1 + self.feedback2) * params.feedback;
 
-            const s = std.math.sin((t + phase + feedback) * std.math.pi * 2);
+            const p = (t + phase) * std.math.pi * 2 + feedback;
+            const s = std.math.sin(p);
             const sample = switch (params.waveform) {
                 0 => s,
                 1 => std.math.max(s, 0),
                 2 => std.math.fabs(s),
-                3 => if (std.math.sin((t + phase + feedback) * std.math.pi * 4) >= 0)
-                    std.math.fabs(s)
-                else
-                    0,
+                3 => if (std.math.sin(p * 2) >= 0) std.math.fabs(s) else 0,
             };
 
             output[i] += sample;
@@ -83,49 +81,168 @@ const Oscillator = struct {
     }
 };
 
-const Instrument = struct {
+// operator is one oscillator + envelope.
+const Operator = struct {
     pub const num_outputs = 1;
-    pub const num_temps = 5;
+    pub const num_temps = 2;
     pub const Params = struct {
         sample_rate: f32,
-        modulator_freq_mul: f32,
-        modulator_waveform: u2,
-        modulator_volume: f32,
-        modulator_attack: f32,
-        modulator_decay: f32,
-        modulator_sustain: f32,
-        modulator_release: f32,
-        modulator_feedback: f32,
-        modulator_tremolo: f32,
-        modulator_vibrato: f32,
-        carrier_freq_mul: f32,
-        carrier_waveform: u2,
-        carrier_volume: f32,
-        carrier_attack: f32,
-        carrier_decay: f32,
-        carrier_sustain: f32,
-        carrier_release: f32,
-        carrier_tremolo: f32,
-        carrier_vibrato: f32,
+        freq: f32,
+        note_on: bool,
+        freq_mul: u32,
+        waveform: u32,
+        volume: u32,
+        attack: u32,
+        decay: u32,
+        sustain: u32,
+        release: u32,
+        feedback: u32,
+        tremolo: u32,
+        vibrato: u32,
+        phase: ?[]const f32,
+        tremolo_input: []const f32,
+        vibrato_input: []const f32,
+    };
+
+    osc: Oscillator,
+    env: mod.Envelope,
+
+    pub fn init() Operator {
+        return .{
+            .osc = Oscillator.init(),
+            .env = mod.Envelope.init(),
+        };
+    }
+
+    pub fn paint(
+        self: *Operator,
+        span: zang.Span,
+        outputs: [num_outputs][]f32,
+        temps: [num_temps][]f32,
+        note_id_changed: bool,
+        params: Params,
+    ) void {
+        // translate discrete parameters to real values
+        const freq_mul: f32 = switch (params.freq_mul) {
+            0 => 0.5,
+            1...10 => |x| @intToFloat(f32, x),
+            11 => 10.0,
+            12 => 12.0,
+            13 => 12.0,
+            14 => 15.0,
+            15 => 15.0,
+            else => unreachable,
+        };
+
+        // TODO this should be logarithmic
+        const volume = @intToFloat(f32, params.volume) / 15.0;
+
+        // note: i didn't mimic OPL's behavior of 0 meaning "never attack/decay/release"
+        const attack = (1.0 - @intToFloat(f32, params.attack) / 15.0) * 4.0;
+        const decay = (1.0 - @intToFloat(f32, params.decay) / 15.0) * 4.0;
+        const sustain = 1.0 - @intToFloat(f32, params.sustain) / 15.0;
+        const release = (1.0 - @intToFloat(f32, params.release) / 15.0) * 4.0;
+
+        const tremolo: f32 = switch (params.tremolo) {
+            0 => 0.0,
+            1 => 0.1,
+            else => unreachable,
+        };
+
+        const vibrato: f32 = switch (params.vibrato) {
+            0 => 0.0,
+            1 => 0.1,
+            else => unreachable,
+        };
+
+        const feedback: f32 = switch (params.feedback) {
+            0 => 0.0,
+            1 => std.math.pi / 16.0,
+            2 => std.math.pi / 8.0,
+            3 => std.math.pi / 4.0,
+            4 => std.math.pi / 2.0,
+            5 => std.math.pi,
+            6 => std.math.pi * 2.0,
+            7 => std.math.pi * 4.0,
+            else => unreachable,
+        };
+
+        // temp1 = input frequency for oscillator
+        zang.zero(span, temps[1]);
+        zang.multiplyScalar(span, temps[1], params.vibrato_input, vibrato);
+        zang.addScalarInto(span, temps[1], 1.0);
+        zang.multiplyWithScalar(span, temps[1], params.freq * freq_mul);
+
+        // temp0 = oscillator output with volume level applied
+        zang.zero(span, temps[0]);
+        self.osc.paint(span, .{temps[0]}, .{}, note_id_changed, .{
+            .sample_rate = params.sample_rate,
+            .freq = temps[1],
+            .waveform = @truncate(u2, params.waveform),
+            .phase = params.phase,
+            .feedback = feedback,
+        });
+        zang.multiplyWithScalar(span, temps[0], volume);
+
+        // apply tremolo to temp0
+        zang.zero(span, temps[1]);
+        zang.multiplyScalar(span, temps[1], params.tremolo_input, tremolo);
+        zang.addScalarInto(span, temps[1], 1.0);
+        zang.multiplyWith(span, temps[0], temps[1]);
+
+        // temp1 = envelope
+        zang.zero(span, temps[1]);
+        self.env.paint(span, .{temps[1]}, .{}, note_id_changed, .{
+            .sample_rate = params.sample_rate,
+            .attack = .{ .cubed = attack },
+            .decay = .{ .cubed = decay },
+            .sustain_volume = sustain,
+            .release = .{ .cubed = release },
+            .note_on = params.note_on,
+        });
+
+        // output
+        zang.multiply(span, outputs[0], temps[0], temps[1]);
+    }
+};
+
+const Instrument = struct {
+    pub const num_outputs = 1;
+    pub const num_temps = 3;
+    pub const Params = struct {
+        sample_rate: f32,
+        tremolo_input: []const f32,
+        vibrato_input: []const f32,
+        modulator_freq_mul: u32,
+        modulator_waveform: u32,
+        modulator_volume: u32,
+        modulator_attack: u32,
+        modulator_decay: u32,
+        modulator_sustain: u32,
+        modulator_release: u32,
+        modulator_feedback: u32,
+        modulator_tremolo: u32,
+        modulator_vibrato: u32,
+        carrier_freq_mul: u32,
+        carrier_waveform: u32,
+        carrier_volume: u32,
+        carrier_attack: u32,
+        carrier_decay: u32,
+        carrier_sustain: u32,
+        carrier_release: u32,
+        carrier_tremolo: u32,
+        carrier_vibrato: u32,
         freq: f32,
         note_on: bool,
     };
 
-    vibrato_lfo: mod.SineOsc,
-    tremolo_lfo: mod.SineOsc,
-    modulator: Oscillator,
-    modulator_env: mod.Envelope,
-    carrier: Oscillator,
-    carrier_env: mod.Envelope,
+    modulator: Operator,
+    carrier: Operator,
 
     pub fn init() Instrument {
         return .{
-            .vibrato_lfo = mod.SineOsc.init(),
-            .tremolo_lfo = mod.SineOsc.init(),
-            .modulator = Oscillator.init(),
-            .modulator_env = mod.Envelope.init(),
-            .carrier = Oscillator.init(),
-            .carrier_env = mod.Envelope.init(),
+            .modulator = Operator.init(),
+            .carrier = Operator.init(),
         };
     }
 
@@ -137,99 +254,52 @@ const Instrument = struct {
         note_id_changed: bool,
         params: Params,
     ) void {
-        // temp3 = tremolo lfo
-        zang.zero(span, temps[3]);
-        self.tremolo_lfo.paint(span, .{temps[3]}, .{}, note_id_changed, .{
-            .sample_rate = params.sample_rate,
-            .freq = zang.constant(3.7),
-            .phase = zang.constant(0),
-        });
-
-        // temp4 = vibrato lfo
-        zang.zero(span, temps[4]);
-        self.vibrato_lfo.paint(span, .{temps[4]}, .{}, note_id_changed, .{
-            .sample_rate = params.sample_rate,
-            .freq = zang.constant(6.4),
-            .phase = zang.constant(0),
-        });
-
-        // temp1 = tremolo lfo for modulator
-        zang.copy(span, temps[1], temps[3]);
-        zang.multiplyWithScalar(span, temps[1], params.modulator_tremolo);
-        zang.addScalarInto(span, temps[1], 1.0);
-
-        // temp2 = frequency for modulator
-        zang.copy(span, temps[2], temps[4]);
-        zang.multiplyWithScalar(span, temps[2], params.modulator_vibrato * 0.1);
-        zang.addScalarInto(span, temps[2], 1.0);
-        zang.multiplyWithScalar(span, temps[2], params.freq * params.modulator_freq_mul);
-
-        // temp0 = modulator oscillator
+        // temp0 = modulator output
         zang.zero(span, temps[0]);
-        self.modulator.paint(span, .{temps[0]}, .{}, note_id_changed, .{
+        self.modulator.paint(span, .{temps[0]}, .{ temps[1], temps[2] }, note_id_changed, .{
             .sample_rate = params.sample_rate,
-            .freq = temps[2],
+            .freq = params.freq,
+            .note_on = params.note_on,
+            .freq_mul = params.modulator_freq_mul,
             .waveform = params.modulator_waveform,
+            .volume = params.modulator_volume,
+            .attack = params.modulator_attack,
+            .decay = params.modulator_decay,
+            .sustain = params.modulator_sustain,
+            .release = params.modulator_release,
+            .feedback = params.modulator_feedback,
+            .tremolo = params.modulator_tremolo,
+            .vibrato = params.modulator_vibrato,
             .phase = null,
-            .feedback = params.modulator_feedback * 0.1,
+            .tremolo_input = params.tremolo_input,
+            .vibrato_input = params.vibrato_input,
         });
-        zang.multiplyWithScalar(span, temps[0], params.modulator_volume);
-        zang.multiplyWith(span, temps[0], temps[1]);
 
-        // temp1 = modulator envelope
-        zang.zero(span, temps[1]);
-        self.modulator_env.paint(span, .{temps[1]}, .{}, note_id_changed, .{
+        // output from carrier
+        self.carrier.paint(span, .{outputs[0]}, .{ temps[1], temps[2] }, note_id_changed, .{
             .sample_rate = params.sample_rate,
-            .attack = .{ .cubed = params.modulator_attack },
-            .decay = .{ .cubed = params.modulator_decay },
-            .sustain_volume = params.modulator_sustain,
-            .release = .{ .cubed = params.modulator_release },
+            .freq = params.freq,
             .note_on = params.note_on,
-        });
-
-        // temp0 = modulator with envelope applied
-        zang.multiplyWith(span, temps[0], temps[1]);
-
-        // temp3 = tremolo lfo for carrier
-        zang.multiplyWithScalar(span, temps[3], params.carrier_tremolo);
-        zang.addScalarInto(span, temps[3], 1.0);
-
-        // temp4 = frequency for carrier
-        zang.multiplyWithScalar(span, temps[4], params.carrier_vibrato * 0.1);
-        zang.addScalarInto(span, temps[4], 1.0);
-        zang.multiplyWithScalar(span, temps[4], params.freq * params.carrier_freq_mul);
-
-        // temp1 = carrier oscillator
-        zang.zero(span, temps[1]);
-        self.carrier.paint(span, .{temps[1]}, .{}, note_id_changed, .{
-            .sample_rate = params.sample_rate,
-            .freq = temps[4],
+            .freq_mul = params.carrier_freq_mul,
             .waveform = params.carrier_waveform,
-            .phase = temps[0],
+            .volume = params.carrier_volume,
+            .attack = params.carrier_attack,
+            .decay = params.carrier_decay,
+            .sustain = params.carrier_sustain,
+            .release = params.carrier_release,
             .feedback = 0,
+            .tremolo = params.carrier_tremolo,
+            .vibrato = params.carrier_vibrato,
+            .phase = temps[0],
+            .tremolo_input = params.tremolo_input,
+            .vibrato_input = params.vibrato_input,
         });
-        zang.multiplyWithScalar(span, temps[1], params.carrier_volume);
-        zang.multiplyWith(span, temps[1], temps[3]);
-
-        // temp2 = carrier envelope
-        zang.zero(span, temps[2]);
-        self.carrier_env.paint(span, .{temps[2]}, .{}, note_id_changed, .{
-            .sample_rate = params.sample_rate,
-            .attack = .{ .cubed = params.carrier_attack },
-            .decay = .{ .cubed = params.carrier_decay },
-            .sustain_volume = params.carrier_sustain,
-            .release = .{ .cubed = params.carrier_release },
-            .note_on = params.note_on,
-        });
-
-        // output carrier with envelope applied
-        zang.multiply(span, outputs[0], temps[1], temps[2]);
     }
 };
 
 pub const MainModule = struct {
     pub const num_outputs = 1;
-    pub const num_temps = Instrument.num_temps;
+    pub const num_temps = Instrument.num_temps + 2;
 
     pub const output_audio = common.AudioOut{ .mono = 0 };
     pub const output_visualize = 0;
@@ -245,25 +315,26 @@ pub const MainModule = struct {
     };
 
     parameters: [19]common.Parameter = [_]common.Parameter{
-        .{ .desc = "Modulator frequency multiplier:", .value = 2.0 },
-        .{ .desc = "Modulator waveform:", .value = 0 },
-        .{ .desc = "Modulator volume:  ", .value = 1.0 },
-        .{ .desc = "Modulator attack:  ", .value = 0.025 },
-        .{ .desc = "Modulator decay:   ", .value = 0.1 },
-        .{ .desc = "Modulator sustain: ", .value = 0.5 },
-        .{ .desc = "Modulator release: ", .value = 1.0 },
-        .{ .desc = "Modulator tremolo: ", .value = 0.0 },
-        .{ .desc = "Modulator vibrato: ", .value = 0.0 },
-        .{ .desc = "Modulator feedback:", .value = 0.0 },
-        .{ .desc = "Carrier frequency multiplier:", .value = 1.0 },
-        .{ .desc = "Carrier waveform:", .value = 0.0 },
-        .{ .desc = "Carrier volume:  ", .value = 1.0 },
-        .{ .desc = "Carrier attack:  ", .value = 0.025 },
-        .{ .desc = "Carrier decay:   ", .value = 0.1 },
-        .{ .desc = "Carrier sustain: ", .value = 0.5 },
-        .{ .desc = "Carrier release: ", .value = 1.0 },
-        .{ .desc = "Carrier tremolo: ", .value = 0.0 },
-        .{ .desc = "Carrier vibrato: ", .value = 0.0 },
+        // note: OPL chips have 64 values for volume (output level), i chose just 16 for now
+        .{ .desc = "Modulator frequency multiplier:", .num_values = 16, .current_value = 2 },
+        .{ .desc = "Modulator waveform:", .num_values = 4, .current_value = 0 },
+        .{ .desc = "Modulator volume:  ", .num_values = 16, .current_value = 15 },
+        .{ .desc = "Modulator attack:  ", .num_values = 16, .current_value = 8 },
+        .{ .desc = "Modulator decay:   ", .num_values = 16, .current_value = 8 },
+        .{ .desc = "Modulator sustain: ", .num_values = 16, .current_value = 8 },
+        .{ .desc = "Modulator release: ", .num_values = 16, .current_value = 8 },
+        .{ .desc = "Modulator tremolo: ", .num_values = 2, .current_value = 0 },
+        .{ .desc = "Modulator vibrato: ", .num_values = 2, .current_value = 0 },
+        .{ .desc = "Modulator feedback:", .num_values = 8, .current_value = 0 },
+        .{ .desc = "Carrier frequency multiplier:", .num_values = 16, .current_value = 1 },
+        .{ .desc = "Carrier waveform:", .num_values = 4, .current_value = 0 },
+        .{ .desc = "Carrier volume:  ", .num_values = 16, .current_value = 15 },
+        .{ .desc = "Carrier attack:  ", .num_values = 16, .current_value = 8 },
+        .{ .desc = "Carrier decay:   ", .num_values = 16, .current_value = 8 },
+        .{ .desc = "Carrier sustain: ", .num_values = 16, .current_value = 8 },
+        .{ .desc = "Carrier release: ", .num_values = 16, .current_value = 8 },
+        .{ .desc = "Carrier tremolo: ", .num_values = 2, .current_value = 0 },
+        .{ .desc = "Carrier vibrato: ", .num_values = 2, .current_value = 0 },
     },
 
     dispatcher: zang.Notes(NoteParams).PolyphonyDispatcher(polyphony),
@@ -274,6 +345,9 @@ pub const MainModule = struct {
 
     iq: zang.Notes(NoteParams).ImpulseQueue,
 
+    vibrato_lfo: mod.SineOsc,
+    tremolo_lfo: mod.SineOsc,
+
     pub fn init() MainModule {
         var self: MainModule = .{
             .note_ids = [1]?usize{null} ** common.key_bindings.len,
@@ -281,6 +355,8 @@ pub const MainModule = struct {
             .iq = zang.Notes(NoteParams).ImpulseQueue.init(),
             .dispatcher = zang.Notes(NoteParams).PolyphonyDispatcher(polyphony).init(),
             .voices = undefined,
+            .vibrato_lfo = mod.SineOsc.init(),
+            .tremolo_lfo = mod.SineOsc.init(),
         };
         for (self.voices) |*voice| {
             voice.* = .{
@@ -297,6 +373,23 @@ pub const MainModule = struct {
         outputs: [num_outputs][]f32,
         temps: [num_temps][]f32,
     ) void {
+        // temp0 = tremolo lfo
+        zang.zero(span, temps[0]);
+        self.tremolo_lfo.paint(span, .{temps[0]}, .{}, false, .{
+            .sample_rate = AUDIO_SAMPLE_RATE,
+            .freq = zang.constant(3.7),
+            .phase = zang.constant(0),
+        });
+
+        // temp1 = vibrato lfo
+        zang.zero(span, temps[1]);
+        self.vibrato_lfo.paint(span, .{temps[1]}, .{}, false, .{
+            .sample_rate = AUDIO_SAMPLE_RATE,
+            .freq = zang.constant(6.4),
+            .phase = zang.constant(0),
+        });
+
+        // FM voices with polyphony
         const iap = self.iq.consume();
 
         const poly_iap = self.dispatcher.dispatch(iap);
@@ -306,32 +399,34 @@ pub const MainModule = struct {
             while (voice.trigger.next(&ctr)) |result| {
                 voice.module.paint(
                     result.span,
-                    outputs,
-                    temps,
+                    .{outputs[0]},
+                    .{ temps[2], temps[3], temps[4] },
                     result.note_id_changed,
                     .{
                         .sample_rate = AUDIO_SAMPLE_RATE,
                         .freq = result.params.freq,
                         .note_on = result.params.note_on,
-                        .modulator_freq_mul = self.parameters[0].value,
-                        .modulator_waveform = @floatToInt(u2, self.parameters[1].value),
-                        .modulator_volume = self.parameters[2].value,
-                        .modulator_attack = self.parameters[3].value,
-                        .modulator_decay = self.parameters[4].value,
-                        .modulator_sustain = self.parameters[5].value,
-                        .modulator_release = self.parameters[6].value,
-                        .modulator_tremolo = self.parameters[7].value,
-                        .modulator_vibrato = self.parameters[8].value,
-                        .modulator_feedback = self.parameters[9].value,
-                        .carrier_freq_mul = self.parameters[10].value,
-                        .carrier_waveform = @floatToInt(u2, self.parameters[11].value),
-                        .carrier_volume = self.parameters[12].value,
-                        .carrier_attack = self.parameters[13].value,
-                        .carrier_decay = self.parameters[14].value,
-                        .carrier_sustain = self.parameters[15].value,
-                        .carrier_release = self.parameters[16].value,
-                        .carrier_tremolo = self.parameters[17].value,
-                        .carrier_vibrato = self.parameters[18].value,
+                        .tremolo_input = temps[0],
+                        .vibrato_input = temps[1],
+                        .modulator_freq_mul = self.parameters[0].current_value,
+                        .modulator_waveform = self.parameters[1].current_value,
+                        .modulator_volume = self.parameters[2].current_value,
+                        .modulator_attack = self.parameters[3].current_value,
+                        .modulator_decay = self.parameters[4].current_value,
+                        .modulator_sustain = self.parameters[5].current_value,
+                        .modulator_release = self.parameters[6].current_value,
+                        .modulator_tremolo = self.parameters[7].current_value,
+                        .modulator_vibrato = self.parameters[8].current_value,
+                        .modulator_feedback = self.parameters[9].current_value,
+                        .carrier_freq_mul = self.parameters[10].current_value,
+                        .carrier_waveform = self.parameters[11].current_value,
+                        .carrier_volume = self.parameters[12].current_value,
+                        .carrier_attack = self.parameters[13].current_value,
+                        .carrier_decay = self.parameters[14].current_value,
+                        .carrier_sustain = self.parameters[15].current_value,
+                        .carrier_release = self.parameters[16].current_value,
+                        .carrier_tremolo = self.parameters[17].current_value,
+                        .carrier_vibrato = self.parameters[18].current_value,
                     },
                 );
             }

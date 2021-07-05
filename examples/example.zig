@@ -329,7 +329,12 @@ pub fn main() !void {
                     if (event.key.keysym.sym == c.SDLK_LEFT and down) {
                         c.SDL_LockAudioDevice(device);
 
-                        userdata.main_module.parameters[sel_param_index].value -= 0.1;
+                        const param = &userdata.main_module.parameters[sel_param_index];
+                        if (param.current_value > 0) {
+                            param.current_value -= 1;
+                        } else {
+                            param.current_value = param.num_values - 1;
+                        }
                         param_dirty_counter +%= 1;
                         pushRedrawEvent();
 
@@ -338,7 +343,12 @@ pub fn main() !void {
                     if (event.key.keysym.sym == c.SDLK_RIGHT and down) {
                         c.SDL_LockAudioDevice(device);
 
-                        userdata.main_module.parameters[sel_param_index].value += 0.1;
+                        const param = &userdata.main_module.parameters[sel_param_index];
+                        if (param.current_value < param.num_values - 1) {
+                            param.current_value += 1;
+                        } else {
+                            param.current_value = 0;
+                        }
                         param_dirty_counter +%= 1;
                         pushRedrawEvent();
 
