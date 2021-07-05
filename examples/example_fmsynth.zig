@@ -5,6 +5,9 @@ const note_frequencies = @import("zang-12tet");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
 
+// TODO move vibrato and tremolo oscillators out of the Instrument. the same
+// value should be shared by all voices
+
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
 pub const AUDIO_SAMPLE_RATE = 48000;
 pub const AUDIO_BUFFER_SIZE = 1024;
@@ -231,9 +234,14 @@ pub const MainModule = struct {
     pub const output_audio = common.AudioOut{ .mono = 0 };
     pub const output_visualize = 0;
 
+    const NoteParams = struct {
+        freq: f32,
+        note_on: bool,
+    };
+
     const Voice = struct {
         module: Instrument,
-        trigger: zang.Trigger(Instrument.Params),
+        trigger: zang.Trigger(NoteParams),
     };
 
     parameters: [19]common.Parameter = [_]common.Parameter{
@@ -258,27 +266,26 @@ pub const MainModule = struct {
         .{ .desc = "Carrier vibrato: ", .value = 0.0 },
     },
 
-    dispatcher: zang.Notes(Instrument.Params).PolyphonyDispatcher(polyphony),
+    dispatcher: zang.Notes(NoteParams).PolyphonyDispatcher(polyphony),
     voices: [polyphony]Voice,
 
     note_ids: [common.key_bindings.len]?usize,
     next_note_id: usize,
 
-    iq: zang.Notes(Instrument.Params).ImpulseQueue,
+    iq: zang.Notes(NoteParams).ImpulseQueue,
 
     pub fn init() MainModule {
         var self: MainModule = .{
             .note_ids = [1]?usize{null} ** common.key_bindings.len,
             .next_note_id = 1,
-            .iq = zang.Notes(Instrument.Params).ImpulseQueue.init(),
-            .dispatcher = zang.Notes(Instrument.Params).PolyphonyDispatcher(polyphony).init(),
+            .iq = zang.Notes(NoteParams).ImpulseQueue.init(),
+            .dispatcher = zang.Notes(NoteParams).PolyphonyDispatcher(polyphony).init(),
             .voices = undefined,
         };
-        var i: usize = 0;
-        while (i < polyphony) : (i += 1) {
-            self.voices[i] = .{
+        for (self.voices) |*voice| {
+            voice.* = .{
                 .module = Instrument.init(),
-                .trigger = zang.Trigger(Instrument.Params).init(),
+                .trigger = zang.Trigger(NoteParams).init(),
             };
         }
         return self;
@@ -302,7 +309,30 @@ pub const MainModule = struct {
                     outputs,
                     temps,
                     result.note_id_changed,
-                    result.params,
+                    .{
+                        .sample_rate = AUDIO_SAMPLE_RATE,
+                        .freq = result.params.freq,
+                        .note_on = result.params.note_on,
+                        .modulator_freq_mul = self.parameters[0].value,
+                        .modulator_waveform = @floatToInt(u2, self.parameters[1].value),
+                        .modulator_volume = self.parameters[2].value,
+                        .modulator_attack = self.parameters[3].value,
+                        .modulator_decay = self.parameters[4].value,
+                        .modulator_sustain = self.parameters[5].value,
+                        .modulator_release = self.parameters[6].value,
+                        .modulator_tremolo = self.parameters[7].value,
+                        .modulator_vibrato = self.parameters[8].value,
+                        .modulator_feedback = self.parameters[9].value,
+                        .carrier_freq_mul = self.parameters[10].value,
+                        .carrier_waveform = @floatToInt(u2, self.parameters[11].value),
+                        .carrier_volume = self.parameters[12].value,
+                        .carrier_attack = self.parameters[13].value,
+                        .carrier_decay = self.parameters[14].value,
+                        .carrier_sustain = self.parameters[15].value,
+                        .carrier_release = self.parameters[16].value,
+                        .carrier_tremolo = self.parameters[17].value,
+                        .carrier_vibrato = self.parameters[18].value,
+                    },
                 );
             }
         }
@@ -313,27 +343,7 @@ pub const MainModule = struct {
             if (kb.key != key)
                 continue;
 
-            const params: Instrument.Params = .{
-                .sample_rate = AUDIO_SAMPLE_RATE,
-                .modulator_freq_mul = self.parameters[0].value,
-                .modulator_waveform = @floatToInt(u2, self.parameters[1].value),
-                .modulator_volume = self.parameters[2].value,
-                .modulator_attack = self.parameters[3].value,
-                .modulator_decay = self.parameters[4].value,
-                .modulator_sustain = self.parameters[5].value,
-                .modulator_release = self.parameters[6].value,
-                .modulator_tremolo = self.parameters[7].value,
-                .modulator_vibrato = self.parameters[8].value,
-                .modulator_feedback = self.parameters[9].value,
-                .carrier_freq_mul = self.parameters[10].value,
-                .carrier_waveform = @floatToInt(u2, self.parameters[11].value),
-                .carrier_volume = self.parameters[12].value,
-                .carrier_attack = self.parameters[13].value,
-                .carrier_decay = self.parameters[14].value,
-                .carrier_sustain = self.parameters[15].value,
-                .carrier_release = self.parameters[16].value,
-                .carrier_tremolo = self.parameters[17].value,
-                .carrier_vibrato = self.parameters[18].value,
+            const params: NoteParams = .{
                 .freq = a4 * kb.rel_freq,
                 .note_on = down,
             };

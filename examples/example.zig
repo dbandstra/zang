@@ -327,14 +327,22 @@ pub fn main() !void {
                         pushRedrawEvent();
                     }
                     if (event.key.keysym.sym == c.SDLK_LEFT and down) {
+                        c.SDL_LockAudioDevice(device);
+
                         userdata.main_module.parameters[sel_param_index].value -= 0.1;
                         param_dirty_counter +%= 1;
                         pushRedrawEvent();
+
+                        c.SDL_UnlockAudioDevice(device);
                     }
                     if (event.key.keysym.sym == c.SDLK_RIGHT and down) {
+                        c.SDL_LockAudioDevice(device);
+
                         userdata.main_module.parameters[sel_param_index].value += 0.1;
                         param_dirty_counter +%= 1;
                         pushRedrawEvent();
+
+                        c.SDL_UnlockAudioDevice(device);
                     }
                 }
                 if (event.key.keysym.sym == c.SDLK_BACKQUOTE and down and event.key.repeat == 0) {
