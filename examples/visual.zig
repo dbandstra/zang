@@ -1,5 +1,6 @@
 const std = @import("std");
 const fft = @import("common/fft.zig").fft;
+const Parameter = @import("common.zig").Parameter;
 const example = @import(@import("build_options").example);
 const Recorder = @import("recorder.zig").Recorder;
 
@@ -159,6 +160,9 @@ fn getFFTValue(f_: f32, in_fft: []const f32, logarithmic: bool) f32 {
 
 pub const BlitContext = struct {
     recorder_state: @TagType(Recorder.State),
+    parameters: []const Parameter,
+    sel_param_index: usize,
+    param_dirty_counter: u32,
 };
 
 pub const VTable = struct {
@@ -816,6 +820,68 @@ pub const DrawStaticString = struct {
     }
 };
 
+pub const DrawParameters = struct {
+    const _vtable = makeVTable(@This());
+
+    vtable: *const VTable,
+    x: usize,
+    y: usize,
+    width: usize,
+    height: usize,
+    bgcolor: u32,
+    param_dirty_counter: ?u32,
+
+    pub fn new(allocator: *std.mem.Allocator, x: usize, y: usize, width: usize, height: usize, bgcolor: u32) !*DrawParameters {
+        var self = try allocator.create(DrawParameters);
+        errdefer allocator.destroy(self);
+        self.* = .{
+            .vtable = &_vtable,
+            .x = x,
+            .y = y,
+            .width = width,
+            .height = height,
+            .bgcolor = bgcolor,
+            .param_dirty_counter = null,
+        };
+        return self;
+    }
+
+    pub fn del(self: *DrawParameters, allocator: *std.mem.Allocator) void {
+        allocator.destroy(self);
+    }
+
+    pub fn blit(self: *DrawParameters, screen: Screen, ctx: BlitContext) void {
+        if (self.param_dirty_counter) |counter| {
+            if (counter == ctx.param_dirty_counter)
+                return;
+        }
+        self.param_dirty_counter = ctx.param_dirty_counter;
+
+        var buffer: [4000]u8 = undefined;
+        var fbs = std.io.fixedBufferStream(&buffer);
+        fbs.writer().writeAll(example.DESCRIPTION) catch {};
+        if (ctx.parameters.len > 0) {
+            fbs.writer().writeAll("\n\nParameters:\n") catch {};
+            for (ctx.parameters) |param, i| {
+                const b = i == ctx.sel_param_index;
+                // can't do this in the fmt arg because of a compiler bug:
+                // https://github.com/ziglang/zig/issues/5230
+                const str: []const u8 = if (b) "=>" else "  ";
+                fbs.writer().print("\n{s}{}. {s}: {d:.1}", .{
+                    str,
+                    i + 1,
+                    param.desc,
+                    param.value,
+                }) catch {};
+            }
+        }
+
+        const rect = clipRect(screen, self.x, self.y, self.width, self.height) orelse return;
+        drawFill(screen, rect, self.bgcolor);
+        drawString(screen, rect, fbs.getWritten());
+    }
+};
+
 pub const DrawRecorderState = struct {
     const _vtable = makeVTable(@This());
 
@@ -903,8 +969,7 @@ pub const Visuals = struct {
         }
     }
 
-    fn addWidget(self: *Visuals, inew: anytype) !void {
-        var instance = try inew;
+    fn addWidget(self: *Visuals, instance: anytype) !void {
         self.widgets.append(&instance.vtable) catch |err| {
             instance.del(self.allocator);
             return err;
@@ -917,7 +982,7 @@ pub const Visuals = struct {
         const bottom_padding = fontchar_h;
 
         const str0 = "F1:Help ";
-        try self.addWidget(DrawStaticString.new(
+        try self.addWidget(try DrawStaticString.new(
             self.allocator,
             0,
             0,
@@ -927,7 +992,7 @@ pub const Visuals = struct {
             if (self.state == .help) 0xFF444444 else 0,
         ));
         const str1 = "F2:Waveform ";
-        try self.addWidget(DrawStaticString.new(
+        try self.addWidget(try DrawStaticString.new(
             self.allocator,
             stringWidth(str0),
             0,
@@ -937,7 +1002,7 @@ pub const Visuals = struct {
             if (self.state == .main) 0xFF444444 else 0,
         ));
         const str2 = "F3:Oscillo ";
-        try self.addWidget(DrawStaticString.new(
+        try self.addWidget(try DrawStaticString.new(
             self.allocator,
             stringWidth(str0) + stringWidth(str1),
             0,
@@ -947,7 +1012,7 @@ pub const Visuals = struct {
             if (self.state == .oscil) 0xFF444444 else 0,
         ));
         const str3 = "F4:Spectrum ";
-        try self.addWidget(DrawStaticString.new(
+        try self.addWidget(try DrawStaticString.new(
             self.allocator,
             stringWidth(str0) + stringWidth(str1) + stringWidth(str2),
             0,
@@ -960,7 +1025,7 @@ pub const Visuals = struct {
         switch (self.state) {
             .help => {
                 const help_h = 247;
-                try self.addWidget(DrawStaticString.new(
+                try self.addWidget(try DrawStaticString.new(
                     self.allocator,
                     12,
                     fontchar_h + 13,
@@ -989,7 +1054,7 @@ pub const Visuals = struct {
                     \\
                     \\-----------------------------------------------------
                 ;
-                try self.addWidget(DrawStaticString.new(
+                try self.addWidget(try DrawStaticString.new(
                     self.allocator,
                     12,
                     help_h,
@@ -1001,7 +1066,7 @@ pub const Visuals = struct {
             },
             .main => {
                 if (self.script_error) |script_error| {
-                    try self.addWidget(DrawStaticString.new(
+                    try self.addWidget(try DrawStaticString.new(
                         self.allocator,
                         12,
                         fontchar_h + 13,
@@ -1011,24 +1076,23 @@ pub const Visuals = struct {
                         0,
                     ));
                 } else {
-                    try self.addWidget(DrawStaticString.new(
+                    try self.addWidget(try DrawParameters.new(
                         self.allocator,
                         12,
                         fontchar_h + 13,
                         self.screen_w - 12 * 2,
                         self.screen_h - bottom_padding - waveform_height - (fontchar_h + 13),
-                        example.DESCRIPTION,
                         0,
                     ));
                 }
-                try self.addWidget(DrawWaveform.new(
+                try self.addWidget(try DrawWaveform.new(
                     self.allocator,
                     0,
                     self.screen_h - bottom_padding - waveform_height,
                     self.screen_w,
                     waveform_height,
                 ));
-                try self.addWidget(DrawSpectrum.new(
+                try self.addWidget(try DrawSpectrum.new(
                     self.allocator,
                     0,
                     self.screen_h - bottom_padding - waveform_height - fft_height,
@@ -1038,7 +1102,7 @@ pub const Visuals = struct {
             },
             .oscil => {
                 const height = 350;
-                try self.addWidget(DrawOscilloscope.new(
+                try self.addWidget(try DrawOscilloscope.new(
                     self.allocator,
                     0,
                     self.screen_h - bottom_padding - height,
@@ -1047,7 +1111,7 @@ pub const Visuals = struct {
                 ));
             },
             .full_fft => {
-                try self.addWidget(DrawSpectrumFull.new(
+                try self.addWidget(try DrawSpectrumFull.new(
                     self.allocator,
                     0,
                     fontchar_h,
@@ -1057,7 +1121,7 @@ pub const Visuals = struct {
             },
         }
 
-        try self.addWidget(DrawRecorderState.new(
+        try self.addWidget(try DrawRecorderState.new(
             self.allocator,
             0,
             self.screen_h - fontchar_h,
@@ -1085,7 +1149,13 @@ pub const Visuals = struct {
 
     // called on the audio thread.
     // return true if a redraw should be triggered
-    pub fn newInput(self: *Visuals, samples: []const f32, mul: f32, sr: f32, oscil_freq: ?[]const f32) bool {
+    pub fn newInput(
+        self: *Visuals,
+        samples: []const f32,
+        mul: f32,
+        sr: f32,
+        oscil_freq: ?[]const f32,
+    ) bool {
         var redraw = false;
 
         var j: usize = 0;

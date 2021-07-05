@@ -6,6 +6,11 @@ pub const AudioOut = union(enum) {
     stereo: struct { left: usize, right: usize },
 };
 
+pub const Parameter = struct {
+    desc: []const u8,
+    value: f32,
+};
+
 pub const KeyBinding = struct {
     row: u1,
     key: i32,

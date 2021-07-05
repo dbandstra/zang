@@ -4,6 +4,7 @@ const std = @import("std");
 const zang = @import("zang");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
+const Parameter = @import("common.zig").Parameter;
 const Recorder = @import("recorder.zig").Recorder;
 const example = @import(@import("build_options").example);
 const visual = @import("visual.zig");
@@ -248,6 +249,8 @@ pub fn main() !void {
 
     pushRedrawEvent();
 
+    var sel_param_index: usize = 0;
+    var param_dirty_counter: u32 = 0;
     var recorder = Recorder.init();
 
     var event: c.SDL_Event = undefined;
@@ -301,6 +304,38 @@ pub fn main() !void {
                     pushRedrawEvent();
 
                     c.SDL_UnlockAudioDevice(device);
+                }
+                if (@hasField(example.MainModule, "parameters") and
+                    userdata.main_module.parameters.len > 0)
+                {
+                    if (event.key.keysym.sym == c.SDLK_UP and down) {
+                        if (sel_param_index > 0) {
+                            sel_param_index -= 1;
+                        } else {
+                            sel_param_index = userdata.main_module.parameters.len - 1;
+                        }
+                        param_dirty_counter +%= 1;
+                        pushRedrawEvent();
+                    }
+                    if (event.key.keysym.sym == c.SDLK_DOWN and down) {
+                        if (sel_param_index < userdata.main_module.parameters.len - 1) {
+                            sel_param_index += 1;
+                        } else {
+                            sel_param_index = 0;
+                        }
+                        param_dirty_counter +%= 1;
+                        pushRedrawEvent();
+                    }
+                    if (event.key.keysym.sym == c.SDLK_LEFT and down) {
+                        userdata.main_module.parameters[sel_param_index].value -= 0.1;
+                        param_dirty_counter +%= 1;
+                        pushRedrawEvent();
+                    }
+                    if (event.key.keysym.sym == c.SDLK_RIGHT and down) {
+                        userdata.main_module.parameters[sel_param_index].value += 0.1;
+                        param_dirty_counter +%= 1;
+                        pushRedrawEvent();
+                    }
                 }
                 if (event.key.keysym.sym == c.SDLK_BACKQUOTE and down and event.key.repeat == 0) {
                     c.SDL_LockAudioDevice(device);
@@ -433,7 +468,15 @@ pub fn main() !void {
                 .pitch = pitch,
             };
 
-            visuals.blit(vis_screen, .{ .recorder_state = recorder.state });
+            visuals.blit(vis_screen, .{
+                .recorder_state = recorder.state,
+                .parameters = if (@hasField(example.MainModule, "parameters"))
+                    &userdata.main_module.parameters
+                else
+                    &[0]Parameter{},
+                .sel_param_index = sel_param_index,
+                .param_dirty_counter = param_dirty_counter,
+            });
 
             c.SDL_UnlockSurface(screen);
             _ = c.SDL_UpdateWindowSurface(window);

@@ -19,6 +19,7 @@ const examples_to_run = [_][]const u8{
     "two",
     "script",
     "vibrato",
+    "fmsynth",
 };
 
 const examples_to_build = [_][]const u8{
