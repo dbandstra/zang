@@ -108,11 +108,8 @@ const Instrument = struct {
             .note_on = params.note_on,
         });
 
-        // temp1 = carrier with envelope applied
-        zang.multiplyWith(span, temps[1], temps[2]);
-
-        // output
-        zang.multiply(span, outputs[0], temps[0], temps[1]);
+        // output carrier with envelope applied
+        zang.multiply(span, outputs[0], temps[1], temps[2]);
     }
 };
 
@@ -129,18 +126,18 @@ pub const MainModule = struct {
     };
 
     parameters: [12]common.Parameter = [_]common.Parameter{
-        .{ .desc = "Modulator frequency multiplier", .value = 2.0 },
-        .{ .desc = "Modulator volume", .value = 1.0 },
-        .{ .desc = "Modulator attack", .value = 0.025 },
-        .{ .desc = "Modulator decay", .value = 0.1 },
-        .{ .desc = "Modulator sustain", .value = 0.5 },
-        .{ .desc = "Modulator release", .value = 1.0 },
-        .{ .desc = "Carrier frequency multiplier", .value = 1.0 },
-        .{ .desc = "Carrier volume", .value = 1.0 },
-        .{ .desc = "Carrier attack", .value = 0.025 },
-        .{ .desc = "Carrier decay", .value = 0.1 },
-        .{ .desc = "Carrier sustain", .value = 0.5 },
-        .{ .desc = "Carrier release", .value = 1.0 },
+        .{ .desc = "Modulator frequency multiplier:", .value = 2.0 },
+        .{ .desc = "Modulator volume: ", .value = 1.0 },
+        .{ .desc = "Modulator attack: ", .value = 0.025 },
+        .{ .desc = "Modulator decay:  ", .value = 0.1 },
+        .{ .desc = "Modulator sustain:", .value = 0.5 },
+        .{ .desc = "Modulator release:", .value = 1.0 },
+        .{ .desc = "Carrier frequency multiplier:", .value = 1.0 },
+        .{ .desc = "Carrier volume: ", .value = 1.0 },
+        .{ .desc = "Carrier attack: ", .value = 0.025 },
+        .{ .desc = "Carrier decay:  ", .value = 0.1 },
+        .{ .desc = "Carrier sustain:", .value = 0.5 },
+        .{ .desc = "Carrier release:", .value = 1.0 },
     },
 
     dispatcher: zang.Notes(Instrument.Params).PolyphonyDispatcher(polyphony),
