@@ -1,3 +1,4 @@
+const std = @import("std");
 const zang = @import("zang");
 const mod = @import("modules");
 const note_frequencies = @import("zang-12tet");
@@ -15,12 +16,62 @@ pub const DESCRIPTION =
 const a4 = 440.0;
 const polyphony = 8;
 
-// TODO modulator feedback
 // TODO vibrato
 // TODO tremolo
 // TODO alternate waveforms
 // TODO parameters have preset values you can pick from? they should be shown on the screen
 // and you can click them?
+
+const SineOscWithFeedback = struct {
+    pub const num_outputs = 1;
+    pub const num_temps = 0;
+    pub const Params = struct {
+        sample_rate: f32,
+        freq: f32,
+        feedback: f32,
+    };
+
+    t: f32,
+    feedback1: f32,
+    feedback2: f32,
+
+    pub fn init() @This() {
+        return .{
+            .t = 0.0,
+            .feedback1 = 0,
+            .feedback2 = 0,
+        };
+    }
+
+    pub fn paint(
+        self: *@This(),
+        span: zang.Span,
+        outputs: [num_outputs][]f32,
+        temps: [num_temps][]f32,
+        note_id_changed: bool,
+        params: Params,
+    ) void {
+        const output = outputs[0][span.start..span.end];
+        var i: usize = 0;
+
+        var t = self.t;
+        // it actually goes out of tune without this!...
+        defer self.t = t - std.math.trunc(t);
+
+        const t_step = params.freq / params.sample_rate;
+        while (i < output.len) : (i += 1) {
+            const extra = (self.feedback1 + self.feedback2) * params.feedback;
+
+            const sample = std.math.sin(t * std.math.pi * 2.0 + extra);
+
+            output[i] += sample;
+
+            t += t_step;
+            self.feedback2 = self.feedback1;
+            self.feedback1 = sample;
+        }
+    }
+};
 
 const Instrument = struct {
     pub const num_outputs = 1;
@@ -33,6 +84,7 @@ const Instrument = struct {
         modulator_decay: f32,
         modulator_sustain: f32,
         modulator_release: f32,
+        modulator_feedback: f32,
         carrier_freq_mul: f32,
         carrier_volume: f32,
         carrier_attack: f32,
@@ -43,14 +95,14 @@ const Instrument = struct {
         note_on: bool,
     };
 
-    modulator: mod.SineOsc,
+    modulator: SineOscWithFeedback,
     modulator_env: mod.Envelope,
     carrier: mod.SineOsc,
     carrier_env: mod.Envelope,
 
     pub fn init() Instrument {
         return .{
-            .modulator = mod.SineOsc.init(),
+            .modulator = SineOscWithFeedback.init(),
             .modulator_env = mod.Envelope.init(),
             .carrier = mod.SineOsc.init(),
             .carrier_env = mod.Envelope.init(),
@@ -69,8 +121,8 @@ const Instrument = struct {
         zang.zero(span, temps[0]);
         self.modulator.paint(span, .{temps[0]}, .{}, note_id_changed, .{
             .sample_rate = params.sample_rate,
-            .freq = zang.constant(params.freq * params.modulator_freq_mul),
-            .phase = zang.constant(0.0),
+            .freq = params.freq * params.modulator_freq_mul,
+            .feedback = params.modulator_feedback,
         });
         zang.multiplyWithScalar(span, temps[0], params.modulator_volume);
 
@@ -125,13 +177,14 @@ pub const MainModule = struct {
         trigger: zang.Trigger(Instrument.Params),
     };
 
-    parameters: [12]common.Parameter = [_]common.Parameter{
+    parameters: [13]common.Parameter = [_]common.Parameter{
         .{ .desc = "Modulator frequency multiplier:", .value = 2.0 },
-        .{ .desc = "Modulator volume: ", .value = 1.0 },
-        .{ .desc = "Modulator attack: ", .value = 0.025 },
-        .{ .desc = "Modulator decay:  ", .value = 0.1 },
-        .{ .desc = "Modulator sustain:", .value = 0.5 },
-        .{ .desc = "Modulator release:", .value = 1.0 },
+        .{ .desc = "Modulator volume:  ", .value = 1.0 },
+        .{ .desc = "Modulator attack:  ", .value = 0.025 },
+        .{ .desc = "Modulator decay:   ", .value = 0.1 },
+        .{ .desc = "Modulator sustain: ", .value = 0.5 },
+        .{ .desc = "Modulator release: ", .value = 1.0 },
+        .{ .desc = "Modulator feedback:", .value = 0.0 },
         .{ .desc = "Carrier frequency multiplier:", .value = 1.0 },
         .{ .desc = "Carrier volume: ", .value = 1.0 },
         .{ .desc = "Carrier attack: ", .value = 0.025 },
@@ -203,12 +256,13 @@ pub const MainModule = struct {
                 .modulator_decay = self.parameters[3].value,
                 .modulator_sustain = self.parameters[4].value,
                 .modulator_release = self.parameters[5].value,
-                .carrier_freq_mul = self.parameters[6].value,
-                .carrier_volume = self.parameters[7].value,
-                .carrier_attack = self.parameters[8].value,
-                .carrier_decay = self.parameters[9].value,
-                .carrier_sustain = self.parameters[10].value,
-                .carrier_release = self.parameters[11].value,
+                .modulator_feedback = self.parameters[6].value,
+                .carrier_freq_mul = self.parameters[7].value,
+                .carrier_volume = self.parameters[8].value,
+                .carrier_attack = self.parameters[9].value,
+                .carrier_decay = self.parameters[10].value,
+                .carrier_sustain = self.parameters[11].value,
+                .carrier_release = self.parameters[12].value,
                 .freq = a4 * kb.rel_freq,
                 .note_on = down,
             };
