@@ -18,16 +18,17 @@ const polyphony = 8;
 
 // TODO vibrato
 // TODO tremolo
-// TODO alternate waveforms
 // TODO parameters have preset values you can pick from? they should be shown on the screen
 // and you can click them?
 
-const SineOscWithFeedback = struct {
+const Oscillator = struct {
     pub const num_outputs = 1;
     pub const num_temps = 0;
     pub const Params = struct {
         sample_rate: f32,
+        waveform: u2,
         freq: f32,
+        phase: ?[]const f32,
         feedback: f32,
     };
 
@@ -60,9 +61,21 @@ const SineOscWithFeedback = struct {
 
         const t_step = params.freq / params.sample_rate;
         while (i < output.len) : (i += 1) {
+            const phase = if (params.phase) |p| p[span.start + i] else 0;
             const extra = (self.feedback1 + self.feedback2) * params.feedback;
 
-            const sample = std.math.sin(t * std.math.pi * 2.0 + extra);
+            const s = std.math.sin((t + phase) * std.math.pi * 2.0 + extra);
+            const sample = switch (params.waveform) {
+                0 => s,
+                1 => std.math.max(s, 0),
+                2 => std.math.fabs(s),
+                3 =>
+                // TODO incorporate extra
+                if (std.math.sin((t + phase) * std.math.pi * 4.0) >= 0)
+                    std.math.fabs(s)
+                else
+                    0,
+            };
 
             output[i] += sample;
 
@@ -79,6 +92,7 @@ const Instrument = struct {
     pub const Params = struct {
         sample_rate: f32,
         modulator_freq_mul: f32,
+        modulator_waveform: u2,
         modulator_volume: f32,
         modulator_attack: f32,
         modulator_decay: f32,
@@ -86,6 +100,7 @@ const Instrument = struct {
         modulator_release: f32,
         modulator_feedback: f32,
         carrier_freq_mul: f32,
+        carrier_waveform: u2,
         carrier_volume: f32,
         carrier_attack: f32,
         carrier_decay: f32,
@@ -95,16 +110,16 @@ const Instrument = struct {
         note_on: bool,
     };
 
-    modulator: SineOscWithFeedback,
+    modulator: Oscillator,
     modulator_env: mod.Envelope,
-    carrier: mod.SineOsc,
+    carrier: Oscillator,
     carrier_env: mod.Envelope,
 
     pub fn init() Instrument {
         return .{
-            .modulator = SineOscWithFeedback.init(),
+            .modulator = Oscillator.init(),
             .modulator_env = mod.Envelope.init(),
-            .carrier = mod.SineOsc.init(),
+            .carrier = Oscillator.init(),
             .carrier_env = mod.Envelope.init(),
         };
     }
@@ -122,6 +137,8 @@ const Instrument = struct {
         self.modulator.paint(span, .{temps[0]}, .{}, note_id_changed, .{
             .sample_rate = params.sample_rate,
             .freq = params.freq * params.modulator_freq_mul,
+            .waveform = params.modulator_waveform,
+            .phase = null,
             .feedback = params.modulator_feedback,
         });
         zang.multiplyWithScalar(span, temps[0], params.modulator_volume);
@@ -144,8 +161,10 @@ const Instrument = struct {
         zang.zero(span, temps[1]);
         self.carrier.paint(span, .{temps[1]}, .{}, note_id_changed, .{
             .sample_rate = params.sample_rate,
-            .freq = zang.constant(params.freq * params.carrier_freq_mul),
-            .phase = zang.buffer(temps[0]),
+            .freq = params.freq * params.carrier_freq_mul,
+            .waveform = params.carrier_waveform,
+            .phase = temps[0],
+            .feedback = 0,
         });
         zang.multiplyWithScalar(span, temps[1], params.carrier_volume);
 
@@ -177,8 +196,9 @@ pub const MainModule = struct {
         trigger: zang.Trigger(Instrument.Params),
     };
 
-    parameters: [13]common.Parameter = [_]common.Parameter{
+    parameters: [15]common.Parameter = [_]common.Parameter{
         .{ .desc = "Modulator frequency multiplier:", .value = 2.0 },
+        .{ .desc = "Modulator waveform:", .value = 0 },
         .{ .desc = "Modulator volume:  ", .value = 1.0 },
         .{ .desc = "Modulator attack:  ", .value = 0.025 },
         .{ .desc = "Modulator decay:   ", .value = 0.1 },
@@ -186,11 +206,12 @@ pub const MainModule = struct {
         .{ .desc = "Modulator release: ", .value = 1.0 },
         .{ .desc = "Modulator feedback:", .value = 0.0 },
         .{ .desc = "Carrier frequency multiplier:", .value = 1.0 },
-        .{ .desc = "Carrier volume: ", .value = 1.0 },
-        .{ .desc = "Carrier attack: ", .value = 0.025 },
-        .{ .desc = "Carrier decay:  ", .value = 0.1 },
-        .{ .desc = "Carrier sustain:", .value = 0.5 },
-        .{ .desc = "Carrier release:", .value = 1.0 },
+        .{ .desc = "Carrier waveform:", .value = 0.0 },
+        .{ .desc = "Carrier volume:  ", .value = 1.0 },
+        .{ .desc = "Carrier attack:  ", .value = 0.025 },
+        .{ .desc = "Carrier decay:   ", .value = 0.1 },
+        .{ .desc = "Carrier sustain: ", .value = 0.5 },
+        .{ .desc = "Carrier release: ", .value = 1.0 },
     },
 
     dispatcher: zang.Notes(Instrument.Params).PolyphonyDispatcher(polyphony),
@@ -251,18 +272,20 @@ pub const MainModule = struct {
             const params: Instrument.Params = .{
                 .sample_rate = AUDIO_SAMPLE_RATE,
                 .modulator_freq_mul = self.parameters[0].value,
-                .modulator_volume = self.parameters[1].value,
-                .modulator_attack = self.parameters[2].value,
-                .modulator_decay = self.parameters[3].value,
-                .modulator_sustain = self.parameters[4].value,
-                .modulator_release = self.parameters[5].value,
-                .modulator_feedback = self.parameters[6].value,
-                .carrier_freq_mul = self.parameters[7].value,
-                .carrier_volume = self.parameters[8].value,
-                .carrier_attack = self.parameters[9].value,
-                .carrier_decay = self.parameters[10].value,
-                .carrier_sustain = self.parameters[11].value,
-                .carrier_release = self.parameters[12].value,
+                .modulator_waveform = @floatToInt(u2, self.parameters[1].value),
+                .modulator_volume = self.parameters[2].value,
+                .modulator_attack = self.parameters[3].value,
+                .modulator_decay = self.parameters[4].value,
+                .modulator_sustain = self.parameters[5].value,
+                .modulator_release = self.parameters[6].value,
+                .modulator_feedback = self.parameters[7].value,
+                .carrier_freq_mul = self.parameters[8].value,
+                .carrier_waveform = @floatToInt(u2, self.parameters[9].value),
+                .carrier_volume = self.parameters[10].value,
+                .carrier_attack = self.parameters[11].value,
+                .carrier_decay = self.parameters[12].value,
+                .carrier_sustain = self.parameters[13].value,
+                .carrier_release = self.parameters[14].value,
                 .freq = a4 * kb.rel_freq,
                 .note_on = down,
             };
