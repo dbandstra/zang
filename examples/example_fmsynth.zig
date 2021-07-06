@@ -106,6 +106,8 @@ const Operator = struct {
         phase: ?[]const f32,
         tremolo_input: []const f32,
         vibrato_input: []const f32,
+        tremolo_depth: u32,
+        vibrato_depth: u32,
     };
 
     osc: Oscillator,
@@ -165,20 +167,23 @@ const Operator = struct {
         };
         const release = 0.002 + 4.0 * std.math.pow(f32, 1 - @intToFloat(f32, params.release) / 15.0, 3.0);
 
-        // note: OPL chip lets you set globally one of two tremolo depths. -4.8dB or -1.0dB.
         const tremolo: f32 = switch (params.tremolo) {
             0 => 0,
-            1 => 1 - decibels(-4.8),
+            1 => switch (params.tremolo_depth) {
+                0 => 1 - decibels(-1.0),
+                1 => 1 - decibels(-4.8),
+                else => unreachable,
+            },
             else => unreachable,
         };
 
-        // same with vibrato, there are two depths. 7 cent and 14 cent. a cent is 1/100 of a
-        // semitone. so there are 1200 cents in an octave.
-        // i'm not sure if i got this math right. this is barely perceptible and this is the
-        // bigger of the two depths. maybe this is how the chips were?
         const vibrato: f32 = switch (params.vibrato) {
             0 => 0.0,
-            1 => std.math.pow(f32, 2, 14.0 / 1200.0) - 1,
+            1 => switch (params.vibrato_depth) {
+                0 => std.math.pow(f32, 2, 7.0 / 1200.0) - 1,
+                1 => std.math.pow(f32, 2, 14.0 / 1200.0) - 1,
+                else => unreachable,
+            },
             else => unreachable,
         };
 
@@ -259,6 +264,8 @@ const Instrument = struct {
         carrier_release: u32,
         carrier_tremolo: u32,
         carrier_vibrato: u32,
+        tremolo_depth: u32,
+        vibrato_depth: u32,
         freq: f32,
         note_on: bool,
     };
@@ -300,6 +307,8 @@ const Instrument = struct {
             .phase = null,
             .tremolo_input = params.tremolo_input,
             .vibrato_input = params.vibrato_input,
+            .tremolo_depth = params.tremolo_depth,
+            .vibrato_depth = params.vibrato_depth,
         });
 
         // output from carrier
@@ -320,6 +329,8 @@ const Instrument = struct {
             .phase = temps[0],
             .tremolo_input = params.tremolo_input,
             .vibrato_input = params.vibrato_input,
+            .tremolo_depth = params.tremolo_depth,
+            .vibrato_depth = params.vibrato_depth,
         });
     }
 };
@@ -341,8 +352,7 @@ pub const MainModule = struct {
         trigger: zang.Trigger(NoteParams),
     };
 
-    parameters: [19]common.Parameter = [_]common.Parameter{
-        // note: OPL chips have 64 values for volume (output level), i chose just 16 for now
+    parameters: [21]common.Parameter = [_]common.Parameter{
         .{ .desc = "Modulator frequency multiplier:", .num_values = 16, .current_value = 2 },
         .{ .desc = "Modulator waveform:", .num_values = 4, .current_value = 0 },
         .{ .desc = "Modulator volume:  ", .num_values = 64, .current_value = 0 },
@@ -362,6 +372,8 @@ pub const MainModule = struct {
         .{ .desc = "Carrier release: ", .num_values = 16, .current_value = 8 },
         .{ .desc = "Carrier tremolo: ", .num_values = 2, .current_value = 0 },
         .{ .desc = "Carrier vibrato: ", .num_values = 2, .current_value = 0 },
+        .{ .desc = "Tremolo depth: ", .num_values = 2, .current_value = 1 },
+        .{ .desc = "Vibrato depth: ", .num_values = 2, .current_value = 1 },
     },
 
     dispatcher: zang.Notes(NoteParams).PolyphonyDispatcher(polyphony),
@@ -454,6 +466,8 @@ pub const MainModule = struct {
                         .carrier_release = self.parameters[16].current_value,
                         .carrier_tremolo = self.parameters[17].current_value,
                         .carrier_vibrato = self.parameters[18].current_value,
+                        .tremolo_depth = self.parameters[19].current_value,
+                        .vibrato_depth = self.parameters[20].current_value,
                     },
                 );
             }
