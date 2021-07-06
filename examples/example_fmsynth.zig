@@ -266,6 +266,7 @@ const Instrument = struct {
         carrier_vibrato: u32,
         tremolo_depth: u32,
         vibrato_depth: u32,
+        algorithm: u32,
         freq: f32,
         note_on: bool,
     };
@@ -289,8 +290,25 @@ const Instrument = struct {
         params: Params,
     ) void {
         // temp0 = modulator output
-        zang.zero(span, temps[0]);
-        self.modulator.paint(span, .{temps[0]}, .{ temps[1], temps[2] }, note_id_changed, .{
+        var modulator_out: []f32 = undefined;
+        var carrier_phase: ?[]const f32 = undefined;
+
+        switch (params.algorithm) {
+            0 => {
+                // additive
+                modulator_out = outputs[0];
+                carrier_phase = null;
+            },
+            1 => {
+                // phase modulation
+                zang.zero(span, temps[0]);
+                modulator_out = temps[0];
+                carrier_phase = temps[0];
+            },
+            else => unreachable,
+        }
+
+        self.modulator.paint(span, .{modulator_out}, .{ temps[1], temps[2] }, note_id_changed, .{
             .sample_rate = params.sample_rate,
             .freq = params.freq,
             .note_on = params.note_on,
@@ -311,7 +329,6 @@ const Instrument = struct {
             .vibrato_depth = params.vibrato_depth,
         });
 
-        // output from carrier
         self.carrier.paint(span, .{outputs[0]}, .{ temps[1], temps[2] }, note_id_changed, .{
             .sample_rate = params.sample_rate,
             .freq = params.freq,
@@ -326,7 +343,7 @@ const Instrument = struct {
             .feedback = 0,
             .tremolo = params.carrier_tremolo,
             .vibrato = params.carrier_vibrato,
-            .phase = temps[0],
+            .phase = carrier_phase,
             .tremolo_input = params.tremolo_input,
             .vibrato_input = params.vibrato_input,
             .tremolo_depth = params.tremolo_depth,
@@ -352,7 +369,7 @@ pub const MainModule = struct {
         trigger: zang.Trigger(NoteParams),
     };
 
-    parameters: [21]common.Parameter = [_]common.Parameter{
+    parameters: [22]common.Parameter = [_]common.Parameter{
         .{ .desc = "Modulator frequency multiplier:", .num_values = 16, .current_value = 2, .favor_low_values = true },
         .{ .desc = "Modulator waveform:", .num_values = 4, .current_value = 0 },
         .{ .desc = "Modulator volume:  ", .num_values = 64, .current_value = 0, .favor_low_values = true },
@@ -374,6 +391,7 @@ pub const MainModule = struct {
         .{ .desc = "Carrier vibrato: ", .num_values = 2, .current_value = 0 },
         .{ .desc = "Tremolo depth: ", .num_values = 2, .current_value = 1 },
         .{ .desc = "Vibrato depth: ", .num_values = 2, .current_value = 1 },
+        .{ .desc = "Algorithm: ", .num_values = 2, .current_value = 1 },
     },
 
     dispatcher: zang.Notes(NoteParams).PolyphonyDispatcher(polyphony),
@@ -468,6 +486,7 @@ pub const MainModule = struct {
                         .carrier_vibrato = self.parameters[18].current_value,
                         .tremolo_depth = self.parameters[19].current_value,
                         .vibrato_depth = self.parameters[20].current_value,
+                        .algorithm = self.parameters[21].current_value,
                     },
                 );
             }
