@@ -302,6 +302,14 @@ pub fn main() !void {
                 if (event.key.keysym.sym == c.SDLK_F5 and down) {
                     c.SDL_LockAudioDevice(device);
 
+                    visuals.setState(.params);
+                    pushRedrawEvent();
+
+                    c.SDL_UnlockAudioDevice(device);
+                }
+                if (event.key.keysym.sym == c.SDLK_F6 and down) {
+                    c.SDL_LockAudioDevice(device);
+
                     visuals.toggleLogarithmicFFT();
                     pushRedrawEvent();
 

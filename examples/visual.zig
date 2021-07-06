@@ -861,7 +861,7 @@ pub const DrawParameters = struct {
         var fbs = std.io.fixedBufferStream(&buffer);
         fbs.writer().writeAll(example.DESCRIPTION) catch {};
         if (ctx.parameters.len > 0) {
-            fbs.writer().writeAll("\n\nParameters (change with arrow keys, hit backspace\nto randomize):\n") catch {};
+            fbs.writer().writeAll("\n\nChange parameters with arrow keys. Hit backspace\nto randomize.\n") catch {};
             for (ctx.parameters) |param, i| {
                 const b = i == ctx.sel_param_index;
                 // can't do this in the fmt arg because of a compiler bug:
@@ -930,6 +930,7 @@ pub const Visuals = struct {
         main,
         oscil,
         full_fft,
+        params,
     };
 
     allocator: *std.mem.Allocator,
@@ -1021,17 +1022,30 @@ pub const Visuals = struct {
             str3,
             if (self.state == .full_fft) 0xFF444444 else 0,
         ));
+        const str4 = "F5:Params ";
+        try self.addWidget(try DrawStaticString.new(
+            self.allocator,
+            stringWidth(str0) + stringWidth(str1) + stringWidth(str2) + stringWidth(str3),
+            0,
+            stringWidth(str4),
+            fontchar_h,
+            str4,
+            if (self.state == .params) 0xFF444444 else 0,
+        ));
 
         switch (self.state) {
             .help => {
-                const help_h = 247;
+                const help_h = 239;
                 try self.addWidget(try DrawStaticString.new(
                     self.allocator,
                     12,
                     fontchar_h + 13,
                     self.screen_w - 12 * 2,
                     help_h,
-                    example.DESCRIPTION,
+                    example.DESCRIPTION ++ (if (@hasField(example.MainModule, "parameters"))
+                        "\n\nPress F5 to see the controllable parameters."
+                    else
+                        ""),
                     0,
                 ));
                 const text =
@@ -1039,10 +1053,11 @@ pub const Visuals = struct {
                     \\
                     \\Help reference
                     \\
-                    \\Press F1, F2, F3, or F4 to change the visualization
-                    \\mode. Stay in this mode for the fastest performance.
+                    \\Press F1, F2, F3, F4, or F5 to change the
+                    \\visualization mode. Stay in this mode for the fastest
+                    \\performance.
                     \\
-                    \\Press F5 to toggle between linear and logarithmic
+                    \\Press F6 to toggle between linear and logarithmic
                     \\spectrum display.
                     \\
                     \\Press ` (backquote/tilde) to record and play back
@@ -1076,12 +1091,16 @@ pub const Visuals = struct {
                         0,
                     ));
                 } else {
-                    try self.addWidget(try DrawParameters.new(
+                    try self.addWidget(try DrawStaticString.new(
                         self.allocator,
                         12,
                         fontchar_h + 13,
                         self.screen_w - 12 * 2,
                         self.screen_h - bottom_padding - waveform_height - (fontchar_h + 13),
+                        example.DESCRIPTION ++ (if (@hasField(example.MainModule, "parameters"))
+                            "\n\nPress F5 to see the controllable parameters."
+                        else
+                            ""),
                         0,
                     ));
                 }
@@ -1117,6 +1136,16 @@ pub const Visuals = struct {
                     fontchar_h,
                     self.screen_w,
                     self.screen_h - fontchar_h - fontchar_h,
+                ));
+            },
+            .params => {
+                try self.addWidget(try DrawParameters.new(
+                    self.allocator,
+                    12,
+                    fontchar_h + 13,
+                    self.screen_w - 12 * 2,
+                    self.screen_h - bottom_padding - (fontchar_h + 13),
+                    0,
                 ));
             },
         }
