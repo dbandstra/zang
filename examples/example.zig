@@ -257,197 +257,233 @@ pub fn main() !void {
 
     var event: c.SDL_Event = undefined;
 
-    while (c.SDL_WaitEvent(&event) != 0) {
-        switch (event.type) {
-            c.SDL_QUIT => {
-                break;
-            },
-            c.SDL_KEYDOWN, c.SDL_KEYUP => {
-                const down = event.type == c.SDL_KEYDOWN;
-                if (event.key.keysym.sym == c.SDLK_ESCAPE and down) {
+    var quit = false;
+    while (!quit) {
+        while (c.SDL_PollEvent(&event) != 0) {
+            switch (event.type) {
+                c.SDL_QUIT => {
+                    quit = true;
                     break;
-                }
-                if (event.key.keysym.sym == c.SDLK_F1 and down) {
-                    c.SDL_LockAudioDevice(device);
-
-                    visuals.setState(.help);
-                    pushRedrawEvent();
-
-                    c.SDL_UnlockAudioDevice(device);
-                }
-                if (event.key.keysym.sym == c.SDLK_F2 and down) {
-                    c.SDL_LockAudioDevice(device);
-
-                    visuals.setState(.main);
-                    pushRedrawEvent();
-
-                    c.SDL_UnlockAudioDevice(device);
-                }
-                if (event.key.keysym.sym == c.SDLK_F3 and down) {
-                    c.SDL_LockAudioDevice(device);
-
-                    visuals.setState(.oscil);
-                    pushRedrawEvent();
-
-                    c.SDL_UnlockAudioDevice(device);
-                }
-                if (event.key.keysym.sym == c.SDLK_F4 and down) {
-                    c.SDL_LockAudioDevice(device);
-
-                    visuals.setState(.full_fft);
-                    pushRedrawEvent();
-
-                    c.SDL_UnlockAudioDevice(device);
-                }
-                if (event.key.keysym.sym == c.SDLK_F5 and down) {
-                    c.SDL_LockAudioDevice(device);
-
-                    visuals.setState(.params);
-                    pushRedrawEvent();
-
-                    c.SDL_UnlockAudioDevice(device);
-                }
-                if (event.key.keysym.sym == c.SDLK_F6 and down) {
-                    c.SDL_LockAudioDevice(device);
-
-                    visuals.toggleLogarithmicFFT();
-                    pushRedrawEvent();
-
-                    c.SDL_UnlockAudioDevice(device);
-                }
-                if (@hasField(example.MainModule, "parameters") and
-                    userdata.main_module.parameters.len > 0)
-                {
-                    if (event.key.keysym.sym == c.SDLK_UP and down) {
-                        if (sel_param_index > 0) {
-                            sel_param_index -= 1;
-                        } else {
-                            sel_param_index = userdata.main_module.parameters.len - 1;
-                        }
-                        param_dirty_counter +%= 1;
-                        pushRedrawEvent();
+                },
+                c.SDL_KEYDOWN, c.SDL_KEYUP => {
+                    const down = event.type == c.SDL_KEYDOWN;
+                    if (event.key.keysym.sym == c.SDLK_ESCAPE and down) {
+                        quit = true;
+                        break;
                     }
-                    if (event.key.keysym.sym == c.SDLK_DOWN and down) {
-                        if (sel_param_index < userdata.main_module.parameters.len - 1) {
-                            sel_param_index += 1;
-                        } else {
-                            sel_param_index = 0;
-                        }
-                        param_dirty_counter +%= 1;
-                        pushRedrawEvent();
-                    }
-                    if (event.key.keysym.sym == c.SDLK_LEFT and down) {
+                    if (event.key.keysym.sym == c.SDLK_F1 and down) {
                         c.SDL_LockAudioDevice(device);
 
-                        const param = &userdata.main_module.parameters[sel_param_index];
-                        if (param.current_value > 0) {
-                            param.current_value -= 1;
-                        } else {
-                            param.current_value = param.num_values - 1;
-                        }
-                        param_dirty_counter +%= 1;
+                        visuals.setState(.help);
                         pushRedrawEvent();
 
                         c.SDL_UnlockAudioDevice(device);
                     }
-                    if (event.key.keysym.sym == c.SDLK_RIGHT and down) {
+                    if (event.key.keysym.sym == c.SDLK_F2 and down) {
                         c.SDL_LockAudioDevice(device);
 
-                        const param = &userdata.main_module.parameters[sel_param_index];
-                        if (param.current_value < param.num_values - 1) {
-                            param.current_value += 1;
-                        } else {
-                            param.current_value = 0;
-                        }
-                        param_dirty_counter +%= 1;
+                        visuals.setState(.main);
                         pushRedrawEvent();
 
                         c.SDL_UnlockAudioDevice(device);
                     }
-                    if (event.key.keysym.sym == c.SDLK_BACKSPACE and down) {
-                        // randomize all parameters
+                    if (event.key.keysym.sym == c.SDLK_F3 and down) {
                         c.SDL_LockAudioDevice(device);
 
-                        for (userdata.main_module.parameters) |*param, ii| {
-                            if (param.favor_low_values) {
-                                var f = prng.random.float(f32);
-                                f = std.math.pow(f32, f, 3.0);
-                                f *= @intToFloat(f32, param.num_values);
-                                param.current_value = @floatToInt(u32, f);
+                        visuals.setState(.oscil);
+                        pushRedrawEvent();
+
+                        c.SDL_UnlockAudioDevice(device);
+                    }
+                    if (event.key.keysym.sym == c.SDLK_F4 and down) {
+                        c.SDL_LockAudioDevice(device);
+
+                        visuals.setState(.full_fft);
+                        pushRedrawEvent();
+
+                        c.SDL_UnlockAudioDevice(device);
+                    }
+                    if (event.key.keysym.sym == c.SDLK_F5 and down) {
+                        c.SDL_LockAudioDevice(device);
+
+                        visuals.setState(.params);
+                        pushRedrawEvent();
+
+                        c.SDL_UnlockAudioDevice(device);
+                    }
+                    if (event.key.keysym.sym == c.SDLK_F6 and down) {
+                        c.SDL_LockAudioDevice(device);
+
+                        visuals.toggleLogarithmicFFT();
+                        pushRedrawEvent();
+
+                        c.SDL_UnlockAudioDevice(device);
+                    }
+                    if (@hasField(example.MainModule, "parameters") and
+                        userdata.main_module.parameters.len > 0)
+                    {
+                        if (event.key.keysym.sym == c.SDLK_UP and down) {
+                            if (sel_param_index > 0) {
+                                sel_param_index -= 1;
                             } else {
-                                param.current_value = prng.random.uintLessThan(u32, param.num_values);
+                                sel_param_index = userdata.main_module.parameters.len - 1;
                             }
+                            param_dirty_counter +%= 1;
+                            pushRedrawEvent();
                         }
-                        param_dirty_counter +%= 1;
+                        if (event.key.keysym.sym == c.SDLK_DOWN and down) {
+                            if (sel_param_index < userdata.main_module.parameters.len - 1) {
+                                sel_param_index += 1;
+                            } else {
+                                sel_param_index = 0;
+                            }
+                            param_dirty_counter +%= 1;
+                            pushRedrawEvent();
+                        }
+                        if (event.key.keysym.sym == c.SDLK_LEFT and down) {
+                            c.SDL_LockAudioDevice(device);
+
+                            const param = &userdata.main_module.parameters[sel_param_index];
+                            if (param.current_value > 0) {
+                                param.current_value -= 1;
+                            } else {
+                                param.current_value = param.num_values - 1;
+                            }
+                            param_dirty_counter +%= 1;
+                            pushRedrawEvent();
+
+                            c.SDL_UnlockAudioDevice(device);
+                        }
+                        if (event.key.keysym.sym == c.SDLK_RIGHT and down) {
+                            c.SDL_LockAudioDevice(device);
+
+                            const param = &userdata.main_module.parameters[sel_param_index];
+                            if (param.current_value < param.num_values - 1) {
+                                param.current_value += 1;
+                            } else {
+                                param.current_value = 0;
+                            }
+                            param_dirty_counter +%= 1;
+                            pushRedrawEvent();
+
+                            c.SDL_UnlockAudioDevice(device);
+                        }
+                        if (event.key.keysym.sym == c.SDLK_BACKSPACE and down) {
+                            // randomize all parameters
+                            c.SDL_LockAudioDevice(device);
+
+                            for (userdata.main_module.parameters) |*param, ii| {
+                                if (param.favor_low_values) {
+                                    var f = prng.random.float(f32);
+                                    f = std.math.pow(f32, f, 3.0);
+                                    f *= @intToFloat(f32, param.num_values);
+                                    param.current_value = @floatToInt(u32, f);
+                                } else {
+                                    param.current_value = prng.random.uintLessThan(u32, param.num_values);
+                                }
+                            }
+                            param_dirty_counter +%= 1;
+                            pushRedrawEvent();
+
+                            c.SDL_UnlockAudioDevice(device);
+                        }
+                    }
+                    if (event.key.keysym.sym == c.SDLK_BACKQUOTE and down and event.key.repeat == 0) {
+                        c.SDL_LockAudioDevice(device);
+
+                        recorder.cycleMode();
                         pushRedrawEvent();
 
                         c.SDL_UnlockAudioDevice(device);
                     }
-                }
-                if (event.key.keysym.sym == c.SDLK_BACKQUOTE and down and event.key.repeat == 0) {
-                    c.SDL_LockAudioDevice(device);
-
-                    recorder.cycleMode();
-                    pushRedrawEvent();
-
-                    c.SDL_UnlockAudioDevice(device);
-                }
-                if (event.key.keysym.sym == c.SDLK_RETURN and down) {
-                    c.SDL_LockAudioDevice(device);
-                    if (userdata.ok) {
-                        if (@hasDecl(example.MainModule, "deinit")) {
-                            userdata.main_module.deinit();
-                        }
-                    }
-                    visuals.setScriptError(null);
-                    visuals.setState(visuals.state);
-                    userdata.ok = true;
-                    if (@typeInfo(@typeInfo(@TypeOf(example.MainModule.init)).Fn.return_type.?) == .ErrorUnion) {
-                        var script_error: ?[]const u8 = null;
-                        userdata.main_module = example.MainModule.init(filename, &script_error) catch blk: {
-                            visuals.setScriptError(script_error);
-                            visuals.setState(visuals.state);
-                            userdata.ok = false;
-                            break :blk undefined;
-                        };
-                    } else {
-                        userdata.main_module = example.MainModule.init();
-                    }
-                    c.SDL_UnlockAudioDevice(device);
-                }
-                if (@hasDecl(example.MainModule, "keyEvent")) {
-                    if (event.key.repeat == 0) {
+                    if (event.key.keysym.sym == c.SDLK_RETURN and down) {
                         c.SDL_LockAudioDevice(device);
                         if (userdata.ok) {
-                            //const impulse_frame = getImpulseFrame(
-                            //    AUDIO_BUFFER_SIZE,
-                            //    AUDIO_SAMPLE_RATE,
-                            //    start_time,
-                            //);
-                            const impulse_frame = getImpulseFrame();
-                            if (userdata.main_module.keyEvent(event.key.keysym.sym, down, impulse_frame)) {
-                                recorder.recordEvent(event.key.keysym.sym, down);
-                                recorder.trackEvent(event.key.keysym.sym, down);
+                            if (@hasDecl(example.MainModule, "deinit")) {
+                                userdata.main_module.deinit();
                             }
+                        }
+                        visuals.setScriptError(null);
+                        visuals.setState(visuals.state);
+                        userdata.ok = true;
+                        if (@typeInfo(@typeInfo(@TypeOf(example.MainModule.init)).Fn.return_type.?) == .ErrorUnion) {
+                            var script_error: ?[]const u8 = null;
+                            userdata.main_module = example.MainModule.init(filename, &script_error) catch blk: {
+                                visuals.setScriptError(script_error);
+                                visuals.setState(visuals.state);
+                                userdata.ok = false;
+                                break :blk undefined;
+                            };
+                        } else {
+                            userdata.main_module = example.MainModule.init();
                         }
                         c.SDL_UnlockAudioDevice(device);
                     }
-                }
-            },
-            c.SDL_MOUSEMOTION => {
-                if (@hasDecl(example.MainModule, "mouseEvent")) {
-                    const x = @intToFloat(f32, event.motion.x) /
-                        @intToFloat(f32, screen_w - 1);
-                    const y = @intToFloat(f32, event.motion.y) /
-                        @intToFloat(f32, screen_h - 1);
-                    const impulse_frame = getImpulseFrame();
+                    if (@hasDecl(example.MainModule, "keyEvent")) {
+                        if (event.key.repeat == 0) {
+                            c.SDL_LockAudioDevice(device);
+                            if (userdata.ok) {
+                                //const impulse_frame = getImpulseFrame(
+                                //    AUDIO_BUFFER_SIZE,
+                                //    AUDIO_SAMPLE_RATE,
+                                //    start_time,
+                                //);
+                                const impulse_frame = getImpulseFrame();
+                                if (userdata.main_module.keyEvent(event.key.keysym.sym, down, impulse_frame)) {
+                                    recorder.recordEvent(event.key.keysym.sym, down);
+                                    recorder.trackEvent(event.key.keysym.sym, down);
+                                }
+                            }
+                            c.SDL_UnlockAudioDevice(device);
+                        }
+                    }
+                },
+                c.SDL_MOUSEMOTION => {
+                    if (@hasDecl(example.MainModule, "mouseEvent")) {
+                        const x = @intToFloat(f32, event.motion.x) /
+                            @intToFloat(f32, screen_w - 1);
+                        const y = @intToFloat(f32, event.motion.y) /
+                            @intToFloat(f32, screen_h - 1);
+                        const impulse_frame = getImpulseFrame();
 
-                    c.SDL_LockAudioDevice(device);
-                    userdata.main_module.mouseEvent(x, y, impulse_frame);
-                    c.SDL_UnlockAudioDevice(device);
-                }
-            },
-            else => {},
+                        c.SDL_LockAudioDevice(device);
+                        userdata.main_module.mouseEvent(x, y, impulse_frame);
+                        c.SDL_UnlockAudioDevice(device);
+                    }
+                },
+                else => {},
+            }
+
+            if (event.type == g_redraw_event) {
+                c.SDL_LockAudioDevice(device);
+
+                _ = c.SDL_LockSurface(screen);
+
+                const pitch = @intCast(usize, screen.pitch) >> 2;
+                const pixels = @ptrCast([*]u32, @alignCast(@alignOf(u32), screen.pixels))[0 .. screen_h * pitch];
+
+                const vis_screen: visual.Screen = .{
+                    .width = screen_w,
+                    .height = screen_h,
+                    .pixels = pixels,
+                    .pitch = pitch,
+                };
+
+                visuals.blit(vis_screen, .{
+                    .recorder_state = recorder.state,
+                    .parameters = if (@hasField(example.MainModule, "parameters"))
+                        &userdata.main_module.parameters
+                    else
+                        &[0]Parameter{},
+                    .sel_param_index = sel_param_index,
+                    .param_dirty_counter = param_dirty_counter,
+                });
+
+                c.SDL_UnlockSurface(screen);
+                _ = c.SDL_UpdateWindowSurface(window);
+
+                c.SDL_UnlockAudioDevice(device);
+            }
         }
 
         while (recorder.getNote()) |n| {
@@ -500,36 +536,8 @@ pub fn main() !void {
             }
         }
 
-        if (event.type == g_redraw_event) {
-            c.SDL_LockAudioDevice(device);
-
-            _ = c.SDL_LockSurface(screen);
-
-            const pitch = @intCast(usize, screen.pitch) >> 2;
-            const pixels = @ptrCast([*]u32, @alignCast(@alignOf(u32), screen.pixels))[0 .. screen_h * pitch];
-
-            const vis_screen: visual.Screen = .{
-                .width = screen_w,
-                .height = screen_h,
-                .pixels = pixels,
-                .pitch = pitch,
-            };
-
-            visuals.blit(vis_screen, .{
-                .recorder_state = recorder.state,
-                .parameters = if (@hasField(example.MainModule, "parameters"))
-                    &userdata.main_module.parameters
-                else
-                    &[0]Parameter{},
-                .sel_param_index = sel_param_index,
-                .param_dirty_counter = param_dirty_counter,
-            });
-
-            c.SDL_UnlockSurface(screen);
-            _ = c.SDL_UpdateWindowSurface(window);
-
-            c.SDL_UnlockAudioDevice(device);
-        }
+        // TODO is there a way to delay 10ms or until a new event arrives, whichever comes first?
+        c.SDL_Delay(15);
     }
 
     if (maybe_listener) |*listener| {
