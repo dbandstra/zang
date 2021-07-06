@@ -253,6 +253,8 @@ pub fn main() !void {
     var param_dirty_counter: u32 = 0;
     var recorder = Recorder.init();
 
+    var prng = std.rand.DefaultPrng.init(@bitCast(u64, std.time.timestamp()));
+
     var event: c.SDL_Event = undefined;
 
     while (c.SDL_WaitEvent(&event) != 0) {
@@ -348,6 +350,18 @@ pub fn main() !void {
                             param.current_value += 1;
                         } else {
                             param.current_value = 0;
+                        }
+                        param_dirty_counter +%= 1;
+                        pushRedrawEvent();
+
+                        c.SDL_UnlockAudioDevice(device);
+                    }
+                    if (event.key.keysym.sym == c.SDLK_BACKSPACE and down) {
+                        // randomize all parameters
+                        c.SDL_LockAudioDevice(device);
+
+                        for (userdata.main_module.parameters) |*param| {
+                            param.current_value = prng.random.intRangeLessThan(u32, 0, param.num_values);
                         }
                         param_dirty_counter +%= 1;
                         pushRedrawEvent();

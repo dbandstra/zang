@@ -861,7 +861,7 @@ pub const DrawParameters = struct {
         var fbs = std.io.fixedBufferStream(&buffer);
         fbs.writer().writeAll(example.DESCRIPTION) catch {};
         if (ctx.parameters.len > 0) {
-            fbs.writer().writeAll("\n\nParameters:\n") catch {};
+            fbs.writer().writeAll("\n\nParameters (change with arrow keys, hit backspace\nto randomize):\n") catch {};
             for (ctx.parameters) |param, i| {
                 const b = i == ctx.sel_param_index;
                 // can't do this in the fmt arg because of a compiler bug:

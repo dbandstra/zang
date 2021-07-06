@@ -14,6 +14,9 @@ pub const AUDIO_BUFFER_SIZE = 1024;
 
 pub const DESCRIPTION =
     \\example_fmsynth
+    \\
+    \\FM synthesizer, mimicking some aspects of Yamaha OPL
+    \\chips.
 ;
 
 const a4 = 440.0;
