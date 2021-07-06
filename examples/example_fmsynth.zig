@@ -19,6 +19,10 @@ pub const DESCRIPTION =
 const a4 = 440.0;
 const polyphony = 8;
 
+fn decibels(db: f32) f32 {
+    return std.math.pow(f32, 10, db / 20);
+}
+
 const Oscillator = struct {
     pub const num_outputs = 1;
     pub const num_temps = 0;
@@ -134,24 +138,47 @@ const Operator = struct {
             else => unreachable,
         };
 
-        // TODO this should be logarithmic
-        const volume = @intToFloat(f32, params.volume) / 15.0;
+        // 0 is the loudest, 63 is the quietest.
+        const volume = blk: {
+            var db: f32 = 0;
+            if (params.volume & 32 != 0) db -= 24.0;
+            if (params.volume & 16 != 0) db -= 12.0;
+            if (params.volume & 8 != 0) db -= 6.0;
+            if (params.volume & 4 != 0) db -= 3.0;
+            if (params.volume & 2 != 0) db -= 1.5;
+            if (params.volume & 1 != 0) db -= 0.75;
+            break :blk decibels(db);
+        };
 
-        // note: i didn't mimic OPL's behavior of 0 meaning "never attack/decay/release"
-        const attack = (1.0 - @intToFloat(f32, params.attack) / 15.0) * 4.0;
-        const decay = (1.0 - @intToFloat(f32, params.decay) / 15.0) * 4.0;
-        const sustain = 1.0 - @intToFloat(f32, params.sustain) / 15.0;
-        const release = (1.0 - @intToFloat(f32, params.release) / 15.0) * 4.0;
+        // no idea how these correspond to actual OPL, i just made them up.
+        // i didn't mimic OPL's behavior of 0 meaning "never attack/decay/release"
+        const attack = 0.002 + 4.0 * std.math.pow(f32, 1 - @intToFloat(f32, params.attack) / 15.0, 3.0);
 
+        const decay = 0.002 + 4.0 * std.math.pow(f32, 1 - @intToFloat(f32, params.decay) / 15.0, 3.0);
+        const sustain = blk: {
+            var db: f32 = 0;
+            if (params.sustain & 8 != 0) db -= 24.0;
+            if (params.sustain & 4 != 0) db -= 12.0;
+            if (params.sustain & 2 != 0) db -= 6.0;
+            if (params.sustain & 1 != 0) db -= 3.0;
+            break :blk decibels(db);
+        };
+        const release = 0.002 + 4.0 * std.math.pow(f32, 1 - @intToFloat(f32, params.release) / 15.0, 3.0);
+
+        // note: OPL chip lets you set globally one of two tremolo depths. -4.8dB or -1.0dB.
         const tremolo: f32 = switch (params.tremolo) {
-            0 => 0.0,
-            1 => 0.1,
+            0 => 0,
+            1 => 1 - decibels(-4.8),
             else => unreachable,
         };
 
+        // same with vibrato, there are two depths. 7 cent and 14 cent. a cent is 1/100 of a
+        // semitone. so there are 1200 cents in an octave.
+        // i'm not sure if i got this math right. this is barely perceptible and this is the
+        // bigger of the two depths. maybe this is how the chips were?
         const vibrato: f32 = switch (params.vibrato) {
             0 => 0.0,
-            1 => 0.1,
+            1 => std.math.pow(f32, 2, 14.0 / 1200.0) - 1,
             else => unreachable,
         };
 
@@ -318,20 +345,20 @@ pub const MainModule = struct {
         // note: OPL chips have 64 values for volume (output level), i chose just 16 for now
         .{ .desc = "Modulator frequency multiplier:", .num_values = 16, .current_value = 2 },
         .{ .desc = "Modulator waveform:", .num_values = 4, .current_value = 0 },
-        .{ .desc = "Modulator volume:  ", .num_values = 16, .current_value = 15 },
+        .{ .desc = "Modulator volume:  ", .num_values = 64, .current_value = 0 },
         .{ .desc = "Modulator attack:  ", .num_values = 16, .current_value = 8 },
         .{ .desc = "Modulator decay:   ", .num_values = 16, .current_value = 8 },
-        .{ .desc = "Modulator sustain: ", .num_values = 16, .current_value = 8 },
+        .{ .desc = "Modulator sustain: ", .num_values = 16, .current_value = 1 },
         .{ .desc = "Modulator release: ", .num_values = 16, .current_value = 8 },
         .{ .desc = "Modulator tremolo: ", .num_values = 2, .current_value = 0 },
         .{ .desc = "Modulator vibrato: ", .num_values = 2, .current_value = 0 },
         .{ .desc = "Modulator feedback:", .num_values = 8, .current_value = 0 },
         .{ .desc = "Carrier frequency multiplier:", .num_values = 16, .current_value = 1 },
         .{ .desc = "Carrier waveform:", .num_values = 4, .current_value = 0 },
-        .{ .desc = "Carrier volume:  ", .num_values = 16, .current_value = 15 },
+        .{ .desc = "Carrier volume:  ", .num_values = 64, .current_value = 0 },
         .{ .desc = "Carrier attack:  ", .num_values = 16, .current_value = 8 },
         .{ .desc = "Carrier decay:   ", .num_values = 16, .current_value = 8 },
-        .{ .desc = "Carrier sustain: ", .num_values = 16, .current_value = 8 },
+        .{ .desc = "Carrier sustain: ", .num_values = 16, .current_value = 1 },
         .{ .desc = "Carrier release: ", .num_values = 16, .current_value = 8 },
         .{ .desc = "Carrier tremolo: ", .num_values = 2, .current_value = 0 },
         .{ .desc = "Carrier vibrato: ", .num_values = 2, .current_value = 0 },
