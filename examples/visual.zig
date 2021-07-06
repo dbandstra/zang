@@ -1036,7 +1036,7 @@ pub const Visuals = struct {
 
         switch (self.state) {
             .help => {
-                const help_h = 239;
+                const help_h = 235;
                 try self.addWidget(try DrawStaticString.new(
                     self.allocator,
                     12,

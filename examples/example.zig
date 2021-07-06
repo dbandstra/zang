@@ -243,7 +243,7 @@ pub fn main() !void {
 
     // this seems to match the value of SDL_GetTicks the first time the audio
     // callback is called
-    const start_time = @intToFloat(f32, c.SDL_GetTicks()) / 1000.0;
+    //const start_time = @intToFloat(f32, c.SDL_GetTicks()) / 1000.0;
 
     c.SDL_PauseAudioDevice(device, 0); // unpause
 
@@ -259,7 +259,13 @@ pub fn main() !void {
 
     var quit = false;
     while (!quit) {
-        while (c.SDL_PollEvent(&event) != 0) {
+        var any_event = false;
+
+        // wait up to 15ms for an event. if we don't get one in that time, we still need to run
+        // some stuff (e.g. recorded note playback).
+        while (c.SDL_WaitEventTimeout(&event, 15) != 0) {
+            any_event = true;
+
             switch (event.type) {
                 c.SDL_QUIT => {
                     quit = true;
@@ -398,10 +404,9 @@ pub fn main() !void {
                     }
                     if (event.key.keysym.sym == c.SDLK_RETURN and down) {
                         c.SDL_LockAudioDevice(device);
-                        if (userdata.ok) {
-                            if (@hasDecl(example.MainModule, "deinit")) {
+                        if (@hasDecl(example.MainModule, "deinit")) {
+                            if (userdata.ok)
                                 userdata.main_module.deinit();
-                            }
                         }
                         visuals.setScriptError(null);
                         visuals.setState(visuals.state);
@@ -451,93 +456,54 @@ pub fn main() !void {
                         c.SDL_UnlockAudioDevice(device);
                     }
                 },
-                else => {},
+                else => if (event.type == g_redraw_event) {
+                    c.SDL_LockAudioDevice(device);
+
+                    _ = c.SDL_LockSurface(screen);
+
+                    const pitch = @intCast(usize, screen.pitch) >> 2;
+                    const pixels = @ptrCast([*]u32, @alignCast(@alignOf(u32), screen.pixels))[0 .. screen_h * pitch];
+
+                    const vis_screen: visual.Screen = .{
+                        .width = screen_w,
+                        .height = screen_h,
+                        .pixels = pixels,
+                        .pitch = pitch,
+                    };
+
+                    visuals.blit(vis_screen, .{
+                        .recorder_state = recorder.state,
+                        .parameters = if (@hasField(example.MainModule, "parameters"))
+                            &userdata.main_module.parameters
+                        else
+                            &[0]Parameter{},
+                        .sel_param_index = sel_param_index,
+                        .param_dirty_counter = param_dirty_counter,
+                    });
+
+                    c.SDL_UnlockSurface(screen);
+                    _ = c.SDL_UpdateWindowSurface(window);
+
+                    c.SDL_UnlockAudioDevice(device);
+                },
             }
 
-            if (event.type == g_redraw_event) {
-                c.SDL_LockAudioDevice(device);
-
-                _ = c.SDL_LockSurface(screen);
-
-                const pitch = @intCast(usize, screen.pitch) >> 2;
-                const pixels = @ptrCast([*]u32, @alignCast(@alignOf(u32), screen.pixels))[0 .. screen_h * pitch];
-
-                const vis_screen: visual.Screen = .{
-                    .width = screen_w,
-                    .height = screen_h,
-                    .pixels = pixels,
-                    .pitch = pitch,
-                };
-
-                visuals.blit(vis_screen, .{
-                    .recorder_state = recorder.state,
-                    .parameters = if (@hasField(example.MainModule, "parameters"))
-                        &userdata.main_module.parameters
-                    else
-                        &[0]Parameter{},
-                    .sel_param_index = sel_param_index,
-                    .param_dirty_counter = param_dirty_counter,
-                });
-
-                c.SDL_UnlockSurface(screen);
-                _ = c.SDL_UpdateWindowSurface(window);
-
-                c.SDL_UnlockAudioDevice(device);
-            }
-        }
-
-        while (recorder.getNote()) |n| {
-            if (@hasDecl(example.MainModule, "keyEvent")) {
-                c.SDL_LockAudioDevice(device);
-                if (userdata.ok) {
-                    const impulse_frame = 0;
-                    if (userdata.main_module.keyEvent(n.key, n.down, impulse_frame)) {
-                        recorder.trackEvent(n.key, n.down);
-                    }
-                }
-                c.SDL_UnlockAudioDevice(device);
+            recorderPlayback(device, &userdata, &recorder);
+            if (maybe_listener) |*listener| {
+                if (!listenerStuff(device, &userdata, listener))
+                    maybe_listener = null;
             }
         }
 
-        if (maybe_listener) |*listener| {
-            const maybe_event = listener.checkForEvent() catch |err| blk: {
-                std.debug.warn("listener.checkForEvent failed: {}\n", .{err});
-                listener.deinit();
-                maybe_listener = null;
-                break :blk null;
-            };
-
-            if (maybe_event) |listener_event| {
-                switch (listener_event) {
-                    .reload => {
-                        c.SDL_LockAudioDevice(device);
-                        if (userdata.ok) {
-                            if (@hasDecl(example.MainModule, "deinit")) {
-                                userdata.main_module.deinit();
-                            }
-                        }
-                        visuals.setScriptError(null);
-                        visuals.setState(visuals.state);
-                        userdata.ok = true;
-                        if (@typeInfo(@typeInfo(@TypeOf(example.MainModule.init)).Fn.return_type.?) == .ErrorUnion) {
-                            var script_error: ?[]const u8 = null;
-                            userdata.main_module = example.MainModule.init(filename, &script_error) catch blk: {
-                                visuals.setScriptError(script_error);
-                                visuals.setState(visuals.state);
-                                userdata.ok = false;
-                                break :blk undefined;
-                            };
-                        } else {
-                            userdata.main_module = example.MainModule.init();
-                        }
-                        c.SDL_UnlockAudioDevice(device);
-                    },
-                }
+        // also need to run real-time stuff outside the event loop, in case no events
+        // have arrived in a while
+        if (!any_event) {
+            recorderPlayback(device, &userdata, &recorder);
+            if (maybe_listener) |*listener| {
+                if (!listenerStuff(device, &userdata, listener))
+                    maybe_listener = null;
             }
         }
-
-        // TODO is there a way to delay 10ms or until a new event arrives, whichever comes first?
-        c.SDL_Delay(15);
     }
 
     if (maybe_listener) |*listener| {
@@ -548,6 +514,61 @@ pub fn main() !void {
     c.SDL_CloseAudioDevice(device);
     c.SDL_DestroyWindow(window);
     c.SDL_Quit();
+}
+
+fn recorderPlayback(device: c.SDL_AudioDeviceID, userdata: *UserData, recorder: *Recorder) void {
+    while (recorder.getNote()) |n| {
+        if (@hasDecl(example.MainModule, "keyEvent")) {
+            c.SDL_LockAudioDevice(device);
+            if (userdata.ok) {
+                const impulse_frame = 0;
+                if (userdata.main_module.keyEvent(n.key, n.down, impulse_frame))
+                    recorder.trackEvent(n.key, n.down);
+            }
+            c.SDL_UnlockAudioDevice(device);
+        }
+    }
+}
+
+fn listenerStuff(
+    device: c.SDL_AudioDeviceID,
+    userdata: *UserData,
+    listener: *Listener,
+) bool {
+    const maybe_event = listener.checkForEvent() catch |err| {
+        std.debug.warn("listener.checkForEvent failed: {}\n", .{err});
+        listener.deinit();
+        return false;
+    };
+
+    const listener_event = maybe_event orelse return true;
+
+    switch (listener_event) {
+        .reload => {
+            c.SDL_LockAudioDevice(device);
+            if (@hasDecl(example.MainModule, "deinit")) {
+                if (userdata.ok)
+                    userdata.main_module.deinit();
+            }
+            visuals.setScriptError(null);
+            visuals.setState(visuals.state);
+            userdata.ok = true;
+            if (@typeInfo(@typeInfo(@TypeOf(example.MainModule.init)).Fn.return_type.?) == .ErrorUnion) {
+                var script_error: ?[]const u8 = null;
+                userdata.main_module = example.MainModule.init(filename, &script_error) catch blk: {
+                    visuals.setScriptError(script_error);
+                    visuals.setState(visuals.state);
+                    userdata.ok = false;
+                    break :blk undefined;
+                };
+            } else {
+                userdata.main_module = example.MainModule.init();
+            }
+            c.SDL_UnlockAudioDevice(device);
+        },
+    }
+
+    return true;
 }
 
 // start notes at a random time within the mix buffer.
