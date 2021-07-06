@@ -10,6 +10,7 @@ pub const Parameter = struct {
     desc: []const u8,
     num_values: u32,
     current_value: u32,
+    favor_low_values: bool = false,
 };
 
 pub const KeyBinding = struct {

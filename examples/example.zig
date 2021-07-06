@@ -361,7 +361,19 @@ pub fn main() !void {
                         c.SDL_LockAudioDevice(device);
 
                         for (userdata.main_module.parameters) |*param| {
-                            param.current_value = prng.random.intRangeLessThan(u32, 0, param.num_values);
+                            if (param.favor_low_values) {
+                                // there's a 25% chance of picking each value.
+                                var i: u32 = 0;
+                                while (i < param.num_values - 1) : (i += 1) {
+                                    if (prng.random.uintLessThan(u32, 4) == 0) {
+                                        param.current_value = i;
+                                        break;
+                                    }
+                                } else param.current_value = param.num_values - 1;
+                            } else {
+                                // even distribution
+                                param.current_value = prng.random.uintLessThan(u32, param.num_values);
+                            }
                         }
                         param_dirty_counter +%= 1;
                         pushRedrawEvent();

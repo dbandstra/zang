@@ -5,9 +5,6 @@ const note_frequencies = @import("zang-12tet");
 const common = @import("common.zig");
 const c = @import("common/c.zig");
 
-// TODO move vibrato and tremolo oscillators out of the Instrument. the same
-// value should be shared by all voices
-
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
 pub const AUDIO_SAMPLE_RATE = 48000;
 pub const AUDIO_BUFFER_SIZE = 1024;
@@ -356,22 +353,22 @@ pub const MainModule = struct {
     };
 
     parameters: [21]common.Parameter = [_]common.Parameter{
-        .{ .desc = "Modulator frequency multiplier:", .num_values = 16, .current_value = 2 },
+        .{ .desc = "Modulator frequency multiplier:", .num_values = 16, .current_value = 2, .favor_low_values = true },
         .{ .desc = "Modulator waveform:", .num_values = 4, .current_value = 0 },
-        .{ .desc = "Modulator volume:  ", .num_values = 64, .current_value = 0 },
+        .{ .desc = "Modulator volume:  ", .num_values = 64, .current_value = 0, .favor_low_values = true },
         .{ .desc = "Modulator attack:  ", .num_values = 16, .current_value = 8 },
         .{ .desc = "Modulator decay:   ", .num_values = 16, .current_value = 8 },
-        .{ .desc = "Modulator sustain: ", .num_values = 16, .current_value = 1 },
+        .{ .desc = "Modulator sustain: ", .num_values = 16, .current_value = 1, .favor_low_values = true },
         .{ .desc = "Modulator release: ", .num_values = 16, .current_value = 8 },
         .{ .desc = "Modulator tremolo: ", .num_values = 2, .current_value = 0 },
         .{ .desc = "Modulator vibrato: ", .num_values = 2, .current_value = 0 },
         .{ .desc = "Modulator feedback:", .num_values = 8, .current_value = 0 },
-        .{ .desc = "Carrier frequency multiplier:", .num_values = 16, .current_value = 1 },
+        .{ .desc = "Carrier frequency multiplier:", .num_values = 16, .current_value = 1, .favor_low_values = true },
         .{ .desc = "Carrier waveform:", .num_values = 4, .current_value = 0 },
-        .{ .desc = "Carrier volume:  ", .num_values = 64, .current_value = 0 },
+        .{ .desc = "Carrier volume:  ", .num_values = 64, .current_value = 0, .favor_low_values = true },
         .{ .desc = "Carrier attack:  ", .num_values = 16, .current_value = 8 },
         .{ .desc = "Carrier decay:   ", .num_values = 16, .current_value = 8 },
-        .{ .desc = "Carrier sustain: ", .num_values = 16, .current_value = 1 },
+        .{ .desc = "Carrier sustain: ", .num_values = 16, .current_value = 1, .favor_low_values = true },
         .{ .desc = "Carrier release: ", .num_values = 16, .current_value = 8 },
         .{ .desc = "Carrier tremolo: ", .num_values = 2, .current_value = 0 },
         .{ .desc = "Carrier vibrato: ", .num_values = 2, .current_value = 0 },
