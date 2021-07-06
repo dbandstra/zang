@@ -368,18 +368,13 @@ pub fn main() !void {
                         // randomize all parameters
                         c.SDL_LockAudioDevice(device);
 
-                        for (userdata.main_module.parameters) |*param| {
+                        for (userdata.main_module.parameters) |*param, ii| {
                             if (param.favor_low_values) {
-                                // there's a 25% chance of picking each value.
-                                var i: u32 = 0;
-                                while (i < param.num_values - 1) : (i += 1) {
-                                    if (prng.random.uintLessThan(u32, 4) == 0) {
-                                        param.current_value = i;
-                                        break;
-                                    }
-                                } else param.current_value = param.num_values - 1;
+                                var f = prng.random.float(f32);
+                                f = std.math.pow(f32, f, 3.0);
+                                f *= @intToFloat(f32, param.num_values);
+                                param.current_value = @floatToInt(u32, f);
                             } else {
-                                // even distribution
                                 param.current_value = prng.random.uintLessThan(u32, param.num_values);
                             }
                         }

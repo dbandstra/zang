@@ -379,7 +379,7 @@ pub const MainModule = struct {
         .{ .desc = "Modulator release: ", .num_values = 16, .current_value = 8 },
         .{ .desc = "Modulator tremolo: ", .num_values = 2, .current_value = 0 },
         .{ .desc = "Modulator vibrato: ", .num_values = 2, .current_value = 0 },
-        .{ .desc = "Modulator feedback:", .num_values = 8, .current_value = 0 },
+        .{ .desc = "Modulator feedback:", .num_values = 8, .current_value = 0, .favor_low_values = true },
         .{ .desc = "Carrier frequency multiplier:", .num_values = 16, .current_value = 1, .favor_low_values = true },
         .{ .desc = "Carrier waveform:", .num_values = 4, .current_value = 0 },
         .{ .desc = "Carrier volume:  ", .num_values = 64, .current_value = 0, .favor_low_values = true },

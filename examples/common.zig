@@ -63,8 +63,6 @@ pub const key_bindings = [_]KeyBinding{
     KeyBinding{ .row = 1, .rel_freq = note_frequencies.f5, .key = c.SDLK_LEFTBRACKET },
     KeyBinding{ .row = 1, .rel_freq = note_frequencies.fs5, .key = c.SDLK_EQUALS },
     KeyBinding{ .row = 1, .rel_freq = note_frequencies.g5, .key = c.SDLK_RIGHTBRACKET },
-    KeyBinding{ .row = 1, .rel_freq = note_frequencies.gs5, .key = c.SDLK_BACKSPACE },
-    KeyBinding{ .row = 1, .rel_freq = note_frequencies.a5, .key = c.SDLK_BACKSLASH },
 };
 
 pub fn getKeyRelFreq(key: i32) ?f32 {
