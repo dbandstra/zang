@@ -268,7 +268,7 @@ fn doParse(parser: *Parser) !void {
 fn parse() void {
     var buffer: [150000]u8 = undefined;
 
-    const contents = util.readFile(buffer[0..]) catch {
+    const contents = std.fs.cwd().readFile("examples/example_song.txt", &buffer) catch {
         std.debug.warn("failed to read file\n", .{});
         return;
     };
@@ -393,7 +393,7 @@ pub const MainModule = struct {
             @field(self.voices, field.name).paint(
                 span,
                 outputs,
-                util.subarray(temps, VoiceType.num_temps),
+                temps[0..VoiceType.num_temps].*,
             );
         }
     }
