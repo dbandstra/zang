@@ -750,7 +750,7 @@ pub const ParseResult = struct {
 pub fn parse(
     ctx: Context,
     inner_allocator: *std.mem.Allocator,
-    dump_parse_out: ?std.io.StreamSource.OutStream,
+    dump_parse_out: ?std.io.StreamSource.Writer,
 ) !ParseResult {
     var arena = std.heap.ArenaAllocator.init(inner_allocator);
     errdefer arena.deinit();
