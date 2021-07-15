@@ -36,10 +36,8 @@ pub fn main() !void {
 
     const file = try std.fs.cwd().createFile("out.wav", .{});
     defer file.close();
-    var writer = file.writer();
 
-    const WavSaver = wav.Saver(@TypeOf(writer));
-    try WavSaver.writeHeader(writer, .{
+    try wav.writeHeader(file.writer(), .{
         .num_channels = example.MainModule.num_outputs,
         .sample_rate = example.AUDIO_SAMPLE_RATE,
         .format = switch (example.AUDIO_FORMAT) {
@@ -85,7 +83,7 @@ pub fn main() !void {
                     byte.* = @intCast(u8, i16(signed_byte) + 128);
                 }
             }
-            try writer.writeAll(out_slice);
+            try file.writer().writeAll(out_slice);
         }
 
         start += len;
@@ -94,6 +92,5 @@ pub fn main() !void {
         progress_node.completeOne();
     }
 
-    var seeker = file.seekableStream();
-    try WavSaver.patchHeader(writer, seeker, bytes_written);
+    try wav.patchHeader(file.writer(), file.seekableStream(), bytes_written);
 }
