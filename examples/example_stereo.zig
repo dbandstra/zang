@@ -78,7 +78,7 @@ const NoiseModule = struct {
                 params.cutoff_frequency,
                 params.sample_rate,
             )),
-            .res = 0.4,
+            .res = zang.constant(0.4),
         });
 
         // increase volume

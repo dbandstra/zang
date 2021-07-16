@@ -95,7 +95,7 @@ pub const Instrument = struct {
                 880.0,
                 params.sample_rate,
             )),
-            .res = 0.8,
+            .res = zang.constant(0.8),
         });
     }
 };
@@ -146,7 +146,7 @@ pub const OuterInstrument = struct {
                 4.0,
                 params.sample_rate,
             )),
-            .res = 0.0,
+            .res = zang.constant(0.0),
         });
 
         if ((params.mode & 1) == 0) {

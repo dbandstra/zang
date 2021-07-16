@@ -181,7 +181,7 @@ pub const FilteredSawtoothInstrument = struct {
                 440.0 * note_frequencies.c5,
                 params.sample_rate,
             )),
-            .res = 0.7,
+            .res = zang.constant(0.7),
         });
     }
 };
@@ -232,7 +232,7 @@ pub const NiceInstrument = struct {
                 params.freq * 8.0,
                 params.sample_rate,
             )),
-            .res = 0.7,
+            .res = zang.constant(0.7),
         });
         zang.zero(span, temps[0]);
         self.env.paint(span, .{temps[0]}, .{}, note_id_changed, .{
@@ -442,7 +442,7 @@ pub fn FilteredEchoes(comptime DELAY_SAMPLES: usize) type {
                     .input = temp0,
                     .type = .low_pass,
                     .cutoff = zang.constant(params.cutoff),
-                    .res = 0.0,
+                    .res = zang.constant(0.0),
                 });
 
                 // output it
