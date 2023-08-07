@@ -10,11 +10,11 @@ pub const Span = struct {
 };
 
 pub fn zero(span: Span, dest: []f32) void {
-    std.mem.set(f32, dest[span.start..span.end], 0.0);
+    @memset(dest[span.start..span.end], 0.0);
 }
 
 pub fn set(span: Span, dest: []f32, a: f32) void {
-    std.mem.set(f32, dest[span.start..span.end], a);
+    @memset(dest[span.start..span.end], a);
 }
 
 pub fn copy(span: Span, dest: []f32, src: []const f32) void {

@@ -1,8 +1,8 @@
 const std = @import("std");
 const zang = @import("zang");
 const zangscript = @import("zangscript");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 const modules = @import("modules.zig");
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;

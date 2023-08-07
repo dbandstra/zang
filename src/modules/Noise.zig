@@ -2,7 +2,7 @@
 // http://www.firstpr.com.au/dsp/pink-noise/
 
 const std = @import("std");
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 
 // use u32 instead of u64 because wasm doesn't support u64 in @atomicRmw.
 // TODO would the `threadlocal` zig keyword make this easier?
@@ -19,14 +19,14 @@ pub const Params = struct {
     color: Color,
 };
 
-r: std.rand.Xoroshiro128,
+r: std.rand.DefaultPrng,
 b: [7]f32,
 
 pub fn init() @This() {
     const seed: u64 = @atomicRmw(u32, &next_seed, .Add, 1, .SeqCst);
 
     return .{
-        .r = std.rand.Xoroshiro128.init(seed),
+        .r = std.rand.DefaultPrng.init(seed),
         .b = [1]f32{0.0} ** 7,
     };
 }
@@ -39,20 +39,23 @@ pub fn paint(
     note_id_changed: bool,
     params: Params,
 ) void {
+    _ = temps;
+    _ = note_id_changed;
+
     const out = outputs[0];
     var r = self.r;
     switch (params.color) {
         .white => {
             var i = span.start;
             while (i < span.end) : (i += 1) {
-                out[i] += r.random.float(f32) * 2.0 - 1.0;
+                out[i] += r.random().float(f32) * 2.0 - 1.0;
             }
         },
         .pink => {
             var b = self.b;
             var i = span.start;
             while (i < span.end) : (i += 1) {
-                const white = r.random.float(f32) * 2.0 - 1.0;
+                const white = r.random().float(f32) * 2.0 - 1.0;
                 b[0] = 0.99886 * b[0] + white * 0.0555179;
                 b[1] = 0.99332 * b[1] + white * 0.0750759;
                 b[2] = 0.96900 * b[2] + white * 0.1538520;

@@ -1,5 +1,5 @@
 const std = @import("std");
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 
 inline fn sin(t: f32) f32 {
     return std.math.sin(t * std.math.pi * 2.0);
@@ -29,6 +29,9 @@ pub fn paint(
     note_id_changed: bool,
     params: Params,
 ) void {
+    _ = temps;
+    _ = note_id_changed;
+
     const output = outputs[0][span.start..span.end];
     var i: usize = 0;
 

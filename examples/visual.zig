@@ -1,7 +1,7 @@
 const std = @import("std");
 const fft = @import("common/fft.zig").fft;
-const Parameter = @import("common.zig").Parameter;
-const example = @import(@import("build_options").example);
+const Parameter = @import("common").Parameter;
+const example = @import("example");
 const Recorder = @import("recorder.zig").Recorder;
 
 const fontdata = @embedFile("font.dat");
@@ -23,8 +23,8 @@ fn clipRect(screen: Screen, x: usize, y: usize, w: usize, h: usize) ?ClipRect {
     return ClipRect{
         .x = x,
         .y = y,
-        .w = std.math.min(w, screen.width - x),
-        .h = std.math.min(h, screen.height - y),
+        .w = @min(w, screen.width - x),
+        .h = @min(h, screen.height - y),
     };
 }
 
@@ -32,7 +32,7 @@ fn drawFill(screen: Screen, rect: ClipRect, color: u32) void {
     var i: usize = 0;
     while (i < rect.h) : (i += 1) {
         const start = (rect.y + i) * screen.pitch + rect.x;
-        std.mem.set(u32, screen.pixels[start .. start + rect.w], color);
+        @memset(screen.pixels[start .. start + rect.w], color);
     }
 }
 
@@ -59,15 +59,15 @@ fn drawString(screen: Screen, rect: ClipRect, s: []const u8) void {
         if (x >= rect.x + rect.w) {
             continue;
         }
-        const index = @intCast(usize, ch - 32) * fontchar_h;
+        const index = @as(usize, @intCast(ch - 32)) * fontchar_h;
         var out_index = y * screen.pitch + x;
         var sy: usize = 0;
-        const sy_end = std.math.min(fontchar_h, rect.y + rect.h - y);
+        const sy_end = @min(fontchar_h, rect.y + rect.h - y);
         while (sy < sy_end) : (sy += 1) {
             const fontrow = fontdata[index + sy];
             var bit: u8 = 1;
             var sx: usize = 0;
-            const sx_end = std.math.min(fontchar_w, rect.x + rect.w - x);
+            const sx_end = @min(fontchar_w, rect.x + rect.w - x);
             while (sx < sx_end) : (sx += 1) {
                 if ((fontrow & bit) != 0) {
                     screen.pixels[out_index + sx] = color;
@@ -119,9 +119,9 @@ fn hslToRgb(h: f32, s: f32, l: f32) u32 {
     b *= sqrt_h;
 
     return @as(u32, 0xFF000000) |
-        (@floatToInt(u32, b * 255) << 16) |
-        (@floatToInt(u32, g * 255) << 8) |
-        (@floatToInt(u32, r * 255));
+        (@as(u32, @intFromFloat(b * 255)) << 16) |
+        (@as(u32, @intFromFloat(g * 255)) << 8) |
+        (@as(u32, @intFromFloat(r * 255)));
 }
 
 fn scrollBlit(screen: Screen, x: usize, y: usize, w: usize, h: usize, buffer: []const u32, drawindex: usize) void {
@@ -148,8 +148,8 @@ fn getFFTValue(f_: f32, in_fft: []const f32, logarithmic: bool) f32 {
 
     f *= 511.5;
     const f_floor = std.math.floor(f);
-    const index0 = @floatToInt(usize, f_floor);
-    const index1 = std.math.min(511, index0 + 1);
+    const index0: usize = @intFromFloat(f_floor);
+    const index1 = @min(511, index0 + 1);
     const frac = f - f_floor;
 
     const fft_value0 = in_fft[index0];
@@ -159,7 +159,7 @@ fn getFFTValue(f_: f32, in_fft: []const f32, logarithmic: bool) f32 {
 }
 
 pub const BlitContext = struct {
-    recorder_state: @TagType(Recorder.State),
+    recorder_state: std.meta.Tag(Recorder.State),
     parameters: []const Parameter,
     sel_param_index: usize,
     param_dirty_counter: u32,
@@ -167,9 +167,9 @@ pub const BlitContext = struct {
 
 pub const VTable = struct {
     offset: usize, // offset of `vtable: *const VTable` in instance object
-    delFn: fn (self: **const VTable, allocator: *std.mem.Allocator) void,
-    plotFn: fn (self: **const VTable, samples: []const f32, mul: f32, logarithmic: bool, sr: f32, oscil_freq: ?[]const f32) bool,
-    blitFn: fn (self: **const VTable, screen: Screen, ctx: BlitContext) void,
+    delFn: *const fn (self: **const VTable, allocator: std.mem.Allocator) void,
+    plotFn: *const fn (self: **const VTable, samples: []const f32, mul: f32, logarithmic: bool, sr: f32, oscil_freq: ?[]const f32) bool,
+    blitFn: *const fn (self: **const VTable, screen: Screen, ctx: BlitContext) void,
 };
 
 fn makeVTable(comptime T: type) VTable {
@@ -177,8 +177,8 @@ fn makeVTable(comptime T: type) VTable {
         const vtable = VTable{
             .offset = blk: {
                 inline for (@typeInfo(T).Struct.fields) |field| {
-                    if (comptime std.mem.eql(u8, field.name, "vtable")) {
-                        break :blk @byteOffsetOf(T, field.name);
+                    if (std.mem.eql(u8, field.name, "vtable")) {
+                        break :blk @offsetOf(T, field.name);
                     }
                 }
                 @compileError("missing vtable field");
@@ -187,15 +187,15 @@ fn makeVTable(comptime T: type) VTable {
             .plotFn = plotFn,
             .blitFn = blitFn,
         };
-        fn delFn(self: **const VTable, allocator: *std.mem.Allocator) void {
-            @intToPtr(*T, @ptrToInt(self) - self.*.offset).del(allocator);
+        fn delFn(self: **const VTable, allocator: std.mem.Allocator) void {
+            @as(*T, @ptrFromInt(@intFromPtr(self) - self.*.offset)).del(allocator);
         }
         fn plotFn(self: **const VTable, samples: []const f32, mul: f32, logarithmic: bool, sr: f32, oscil_freq: ?[]const f32) bool {
             if (!@hasDecl(T, "plot")) return false;
-            return @intToPtr(*T, @ptrToInt(self) - self.*.offset).plot(samples, mul, logarithmic, sr, oscil_freq);
+            return @as(*T, @ptrFromInt(@intFromPtr(self) - self.*.offset)).plot(samples, mul, logarithmic, sr, oscil_freq);
         }
         fn blitFn(self: **const VTable, screen: Screen, ctx: BlitContext) void {
-            @intToPtr(*T, @ptrToInt(self) - self.*.offset).blit(screen, ctx);
+            @as(*T, @ptrFromInt(@intFromPtr(self) - self.*.offset)).blit(screen, ctx);
         }
     };
     return S.vtable;
@@ -217,7 +217,7 @@ pub const DrawSpectrum = struct {
     logarithmic: bool,
     state: enum { up_to_date, needs_blit, needs_full_reblit },
 
-    pub fn new(allocator: *std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawSpectrum {
+    pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawSpectrum {
         var self = try allocator.create(DrawSpectrum);
         errdefer allocator.destroy(self);
         var old_y = try allocator.alloc(u32, width);
@@ -242,11 +242,11 @@ pub const DrawSpectrum = struct {
             .state = .needs_full_reblit,
         };
         // old_y doesn't need to be initialized as long as state is .needs_full_reblit
-        std.mem.set(f32, self.fft_out, 0.0);
+        @memset(self.fft_out, 0.0);
         return self;
     }
 
-    pub fn del(self: *DrawSpectrum, allocator: *std.mem.Allocator) void {
+    pub fn del(self: *DrawSpectrum, allocator: std.mem.Allocator) void {
         allocator.free(self.old_y);
         allocator.free(self.fft_real);
         allocator.free(self.fft_imag);
@@ -254,11 +254,14 @@ pub const DrawSpectrum = struct {
         allocator.destroy(self);
     }
 
-    pub fn plot(self: *DrawSpectrum, samples: []const f32, _mul: f32, logarithmic: bool, _sr: f32, _oscil_freq: ?[]const f32) bool {
+    pub fn plot(self: *DrawSpectrum, samples: []const f32, mul: f32, logarithmic: bool, sr: f32, oscil_freq: ?[]const f32) bool {
+        _ = mul;
+        _ = sr;
+        _ = oscil_freq;
         std.debug.assert(samples.len == 1024); // FIXME
 
         std.mem.copy(f32, self.fft_real, samples);
-        std.mem.set(f32, self.fft_imag, 0.0);
+        @memset(self.fft_imag, 0.0);
         fft(1024, self.fft_real, self.fft_imag);
 
         var i: usize = 0;
@@ -276,7 +279,8 @@ pub const DrawSpectrum = struct {
         return true;
     }
 
-    pub fn blit(self: *DrawSpectrum, screen: Screen, _context: BlitContext) void {
+    pub fn blit(self: *DrawSpectrum, screen: Screen, context: BlitContext) void {
+        _ = context;
         if (self.state == .up_to_date) return;
         defer self.state = .up_to_date;
 
@@ -284,8 +288,8 @@ pub const DrawSpectrum = struct {
 
         var i: usize = 0;
         while (i < self.width) : (i += 1) {
-            const fi = @intToFloat(f32, i) / @intToFloat(f32, self.width - 1);
-            const fv = getFFTValue(fi, self.fft_out, self.logarithmic) * @intToFloat(f32, self.height);
+            const fi = @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(self.width - 1));
+            const fv = getFFTValue(fi, self.fft_out, self.logarithmic) * @as(f32, @floatFromInt(self.height));
 
             // where the graph will transition from background to foreground color
             var new_y: u32 = undefined;
@@ -295,18 +299,18 @@ pub const DrawSpectrum = struct {
 
             if (fv != fv) {
                 // show NaNs as a 1px tall red line
-                new_y = @intCast(u32, self.height - 1);
+                new_y = @intCast(self.height - 1);
                 transition_color = 0xFFFF0000;
                 color = 0xFFFF0000;
             } else {
-                const value = @floatToInt(u32, std.math.floor(fv));
-                const value_clipped = std.math.min(value, self.height - 1);
+                const value: u32 = @intFromFloat(std.math.floor(fv));
+                const value_clipped = @min(value, self.height - 1);
 
-                new_y = @intCast(u32, self.height - value_clipped);
+                new_y = @intCast(self.height - value_clipped);
 
                 // the transition pixel will have a blended color value
                 const frac = fv - std.math.floor(fv);
-                const co: u32 = @floatToInt(u32, 0x44 * frac);
+                const co: u32 = @intFromFloat(0x44 * frac);
                 transition_color = @as(u32, 0xFF000000) | (co << 16) | (co << 8) | co;
                 color = 0xFF444444;
             }
@@ -345,7 +349,7 @@ pub const DrawSpectrum = struct {
                         sy += 1;
                     }
                     // add one to cover up the old transition pixel
-                    const until = std.math.min(old_y + 1, self.height);
+                    const until = @min(old_y + 1, self.height);
                     while (sy < self.y + until) : (sy += 1) {
                         screen.pixels[sy * screen.pitch + sx] = color;
                     }
@@ -372,7 +376,7 @@ pub const DrawSpectrumFull = struct {
     logarithmic: bool,
     drawindex: usize,
 
-    pub fn new(allocator: *std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawSpectrumFull {
+    pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawSpectrumFull {
         var self = try allocator.create(DrawSpectrumFull);
         errdefer allocator.destroy(self);
         var fft_real = try allocator.alloc(f32, 1024);
@@ -393,33 +397,36 @@ pub const DrawSpectrumFull = struct {
             .logarithmic = false,
             .drawindex = 0,
         };
-        std.mem.set(u32, self.buffer, 0);
+        @memset(self.buffer, 0);
         return self;
     }
 
-    pub fn del(self: *DrawSpectrumFull, allocator: *std.mem.Allocator) void {
+    pub fn del(self: *DrawSpectrumFull, allocator: std.mem.Allocator) void {
         allocator.free(self.fft_real);
         allocator.free(self.fft_imag);
         allocator.free(self.buffer);
         allocator.destroy(self);
     }
 
-    pub fn plot(self: *DrawSpectrumFull, samples: []const f32, _mul: f32, logarithmic: bool, _sr: f32, _oscil_freq: ?[]const f32) bool {
+    pub fn plot(self: *DrawSpectrumFull, samples: []const f32, mul: f32, logarithmic: bool, sr: f32, oscil_freq: ?[]const f32) bool {
+        _ = mul;
+        _ = sr;
+        _ = oscil_freq;
         if (self.logarithmic != logarithmic) {
             self.logarithmic = logarithmic;
-            std.mem.set(u32, self.buffer, 0.0);
+            @memset(self.buffer, 0.0);
             self.drawindex = 0;
         }
 
         std.debug.assert(samples.len == 1024); // FIXME
 
         std.mem.copy(f32, self.fft_real, samples);
-        std.mem.set(f32, self.fft_imag, 0.0);
+        @memset(self.fft_imag, 0.0);
         fft(1024, self.fft_real, self.fft_imag);
 
         var i: usize = 0;
         while (i < self.height) : (i += 1) {
-            const f = @intToFloat(f32, i) / @intToFloat(f32, self.height - 1);
+            const f = @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(self.height - 1));
             const fft_value = getFFTValue(f, self.fft_real, logarithmic);
 
             var color: u32 = undefined;
@@ -444,7 +451,8 @@ pub const DrawSpectrumFull = struct {
         return true;
     }
 
-    pub fn blit(self: *DrawSpectrumFull, screen: Screen, _ctx: BlitContext) void {
+    pub fn blit(self: *DrawSpectrumFull, screen: Screen, ctx: BlitContext) void {
+        _ = ctx;
         scrollBlit(screen, self.x, self.y, self.width, self.height, self.buffer, self.drawindex);
     }
 };
@@ -467,7 +475,7 @@ pub const DrawWaveform = struct {
     const clipped_color: u32 = 0xFFFF0000;
     const center_line_color: u32 = 0x66666666;
 
-    pub fn new(allocator: *std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawWaveform {
+    pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawWaveform {
         var self = try allocator.create(DrawWaveform);
         errdefer allocator.destroy(self);
         var buffer = try allocator.alloc(u32, width * height);
@@ -482,18 +490,21 @@ pub const DrawWaveform = struct {
             .drawindex = 0,
             .dirty = true,
         };
-        std.mem.set(u32, self.buffer, background_color);
+        @memset(self.buffer, background_color);
         const start = height / 2 * width;
-        std.mem.set(u32, self.buffer[start .. start + width], center_line_color);
+        @memset(self.buffer[start .. start + width], center_line_color);
         return self;
     }
 
-    pub fn del(self: *DrawWaveform, allocator: *std.mem.Allocator) void {
+    pub fn del(self: *DrawWaveform, allocator: std.mem.Allocator) void {
         allocator.free(self.buffer);
         allocator.destroy(self);
     }
 
-    pub fn plot(self: *DrawWaveform, samples: []const f32, mul: f32, _logarithmic: bool, _sr: f32, _oscil_freq: ?[]const f32) bool {
+    pub fn plot(self: *DrawWaveform, samples: []const f32, mul: f32, logarithmic: bool, sr: f32, oscil_freq: ?[]const f32) bool {
+        _ = logarithmic;
+        _ = sr;
+        _ = oscil_freq;
         var sample_min = samples[0];
         var sample_max = samples[0];
         for (samples[1..]) |sample| {
@@ -518,21 +529,21 @@ pub const DrawWaveform = struct {
                 self.buffer[sy * self.width + sx] = background_color;
             }
         } else {
-            const fy_mid = @intToFloat(f32, y_mid);
-            const fy_max = @intToFloat(f32, self.height - 1);
-            const y0 = @floatToInt(usize, std.math.clamp(fy_mid - sample_max * fy_mid, 0, fy_max) + 0.5);
-            const y1 = @floatToInt(usize, std.math.clamp(fy_mid - sample_min * fy_mid, 0, fy_max) + 0.5);
+            const fy_mid: f32 = @floatFromInt(y_mid);
+            const fy_max: f32 = @floatFromInt(self.height - 1);
+            const y0: usize = @intFromFloat(std.math.clamp(fy_mid - sample_max * fy_mid, 0, fy_max) + 0.5);
+            const y1: usize = @intFromFloat(std.math.clamp(fy_mid - sample_min * fy_mid, 0, fy_max) + 0.5);
             var until: usize = undefined;
 
             if (sample_max >= 1.0) {
                 self.buffer[sy * self.width + sx] = clipped_color;
                 sy += 1;
             }
-            until = std.math.min(y0, y_mid);
+            until = @min(y0, y_mid);
             while (sy < until) : (sy += 1) {
                 self.buffer[sy * self.width + sx] = background_color;
             }
-            until = std.math.min(y1, y_mid);
+            until = @min(y1, y_mid);
             while (sy < until) : (sy += 1) {
                 self.buffer[sy * self.width + sx] = waveform_color;
             }
@@ -542,12 +553,12 @@ pub const DrawWaveform = struct {
             self.buffer[sy * self.width + sx] = center_line_color;
             sy += 1;
             if (y0 > y_mid) {
-                until = std.math.min(y0, self.height);
+                until = @min(y0, self.height);
                 while (sy < until) : (sy += 1) {
                     self.buffer[sy * self.width + sx] = background_color;
                 }
             }
-            until = std.math.min(y1, self.height);
+            until = @min(y1, self.height);
             while (sy < until) : (sy += 1) {
                 self.buffer[sy * self.width + sx] = waveform_color;
             }
@@ -569,7 +580,8 @@ pub const DrawWaveform = struct {
         return true;
     }
 
-    pub fn blit(self: *DrawWaveform, screen: Screen, _ctx: BlitContext) void {
+    pub fn blit(self: *DrawWaveform, screen: Screen, ctx: BlitContext) void {
+        _ = ctx;
         if (!self.dirty) return;
         self.dirty = false;
 
@@ -601,7 +613,7 @@ pub const DrawOscilloscope = struct {
     const background_color: u32 = 0xFF181818;
     const waveform_color: u32 = 0xFFAAAAAA;
 
-    pub fn new(allocator: *std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawOscilloscope {
+    pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawOscilloscope {
         var self = try allocator.create(DrawOscilloscope);
         errdefer allocator.destroy(self);
         var samples = try allocator.alloc(f32, width);
@@ -609,7 +621,7 @@ pub const DrawOscilloscope = struct {
         var buffered_samples = try allocator.alloc(f32, width);
         errdefer allocator.free(buffered_samples);
         var painted_spans = try allocator.alloc(PaintedSpan, width);
-        errdefer allocator.free(old_y);
+        errdefer allocator.free(painted_spans);
         self.* = .{
             .vtable = &_vtable,
             .x = x,
@@ -624,18 +636,19 @@ pub const DrawOscilloscope = struct {
             .accum = 0,
             .state = .needs_full_reblit,
         };
-        std.mem.set(f32, samples, 0.0);
+        @memset(samples, 0.0);
         return self;
     }
 
-    pub fn del(self: *DrawOscilloscope, allocator: *std.mem.Allocator) void {
+    pub fn del(self: *DrawOscilloscope, allocator: std.mem.Allocator) void {
         allocator.free(self.samples);
         allocator.free(self.buffered_samples);
         allocator.free(self.painted_spans);
         allocator.destroy(self);
     }
 
-    pub fn plot(self: *DrawOscilloscope, samples: []const f32, mul: f32, _logarithmic: bool, sr: f32, oscil_freq: ?[]const f32) bool {
+    pub fn plot(self: *DrawOscilloscope, samples: []const f32, mul: f32, logarithmic: bool, sr: f32, oscil_freq: ?[]const f32) bool {
+        _ = logarithmic;
         self.mul = mul; // meh
         // TODO can i refactor this into two classes? - one doesn't know about buffering.
         // the other wraps it and implements buffering. would that work?
@@ -644,7 +657,7 @@ pub const DrawOscilloscope = struct {
         var drain_buffer = false;
         if (oscil_freq) |freq| {
             // sync to oscil_freq
-            for (samples) |_, i| {
+            for (samples, 0..) |_, i| {
                 self.accum += freq[i] * inv_sr;
                 // if frequency is so high that self.accum >= 2.0, you have bigger problems...
                 if (self.accum >= 1.0) {
@@ -722,7 +735,8 @@ pub const DrawOscilloscope = struct {
         return true;
     }
 
-    pub fn blit(self: *DrawOscilloscope, screen: Screen, _ctx: BlitContext) void {
+    pub fn blit(self: *DrawOscilloscope, screen: Screen, ctx: BlitContext) void {
+        _ = ctx;
         if (self.state == .up_to_date) return;
         defer self.state = .up_to_date;
 
@@ -732,7 +746,7 @@ pub const DrawOscilloscope = struct {
         var i: usize = 0;
         while (i < self.width) : (i += 1) {
             const sx = self.x + i;
-            const sample = std.math.max(-1.0, std.math.min(1.0, self.samples[i] * self.mul));
+            const sample = @max(-1.0, @min(1.0, self.samples[i] * self.mul));
 
             var y: usize = undefined;
             var color: u32 = undefined;
@@ -742,14 +756,14 @@ pub const DrawOscilloscope = struct {
                 y = self.height / 2;
                 color = 0xFFFF0000;
             } else {
-                y = @floatToInt(usize, @intToFloat(f32, y_mid) - sample * @intToFloat(f32, self.height / 2) + 0.5);
+                y = @intFromFloat(@as(f32, @floatFromInt(y_mid)) - sample * @as(f32, @floatFromInt(self.height / 2)) + 0.5);
                 color = waveform_color;
             }
 
             const y_0 = if (i == 0) y else old_y;
             const y_1 = y;
-            const y0 = std.math.min(y_0, y_1);
-            const y1 = if (y_0 == y_1) std.math.min(y_0 + 1, self.height) else std.math.max(y_0, y_1);
+            const y0 = @min(y_0, y_1);
+            const y1 = if (y_0 == y_1) @min(y_0 + 1, self.height) else @max(y_0, y_1);
             if (self.state == .needs_full_reblit) {
                 var sy: usize = 0;
                 while (sy < y0) : (sy += 1) {
@@ -790,7 +804,7 @@ pub const DrawStaticString = struct {
     string: []const u8,
     bgcolor: u32,
 
-    pub fn new(allocator: *std.mem.Allocator, x: usize, y: usize, width: usize, height: usize, string: []const u8, bgcolor: u32) !*DrawStaticString {
+    pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize, string: []const u8, bgcolor: u32) !*DrawStaticString {
         var self = try allocator.create(DrawStaticString);
         errdefer allocator.destroy(self);
         self.* = .{
@@ -806,11 +820,12 @@ pub const DrawStaticString = struct {
         return self;
     }
 
-    pub fn del(self: *DrawStaticString, allocator: *std.mem.Allocator) void {
+    pub fn del(self: *DrawStaticString, allocator: std.mem.Allocator) void {
         allocator.destroy(self);
     }
 
     pub fn blit(self: *DrawStaticString, screen: Screen, ctx: BlitContext) void {
+        _ = ctx;
         if (self.drawn) return;
         self.drawn = true;
 
@@ -831,7 +846,7 @@ pub const DrawParameters = struct {
     bgcolor: u32,
     param_dirty_counter: ?u32,
 
-    pub fn new(allocator: *std.mem.Allocator, x: usize, y: usize, width: usize, height: usize, bgcolor: u32) !*DrawParameters {
+    pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize, bgcolor: u32) !*DrawParameters {
         var self = try allocator.create(DrawParameters);
         errdefer allocator.destroy(self);
         self.* = .{
@@ -846,7 +861,7 @@ pub const DrawParameters = struct {
         return self;
     }
 
-    pub fn del(self: *DrawParameters, allocator: *std.mem.Allocator) void {
+    pub fn del(self: *DrawParameters, allocator: std.mem.Allocator) void {
         allocator.destroy(self);
     }
 
@@ -863,7 +878,7 @@ pub const DrawParameters = struct {
             fbs.writer().writeAll("This example has no controllable parameters.") catch {};
         } else {
             fbs.writer().writeAll("Change parameters with arrow keys. Hit backspace\nto randomize.\n") catch {};
-            for (ctx.parameters) |param, i| {
+            for (ctx.parameters, 0..) |param, i| {
                 const b = i == ctx.sel_param_index;
                 // can't do this in the fmt arg because of a compiler bug:
                 // https://github.com/ziglang/zig/issues/5230
@@ -891,9 +906,9 @@ pub const DrawRecorderState = struct {
     y: usize,
     width: usize,
     height: usize,
-    recorder_state: @TagType(Recorder.State),
+    recorder_state: std.meta.Tag(Recorder.State),
 
-    pub fn new(allocator: *std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawRecorderState {
+    pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawRecorderState {
         var self = try allocator.create(DrawRecorderState);
         errdefer allocator.destroy(self);
         self.* = .{
@@ -907,7 +922,7 @@ pub const DrawRecorderState = struct {
         return self;
     }
 
-    pub fn del(self: *DrawRecorderState, allocator: *std.mem.Allocator) void {
+    pub fn del(self: *DrawRecorderState, allocator: std.mem.Allocator) void {
         allocator.destroy(self);
     }
 
@@ -934,7 +949,7 @@ pub const Visuals = struct {
         params,
     };
 
-    allocator: *std.mem.Allocator,
+    allocator: std.mem.Allocator,
     screen_w: usize,
     screen_h: usize,
 
@@ -945,7 +960,7 @@ pub const Visuals = struct {
     logarithmic_fft: bool,
     script_error: ?[]const u8,
 
-    pub fn init(allocator: *std.mem.Allocator, screen_w: usize, screen_h: usize) !Visuals {
+    pub fn init(allocator: std.mem.Allocator, screen_w: usize, screen_h: usize) !Visuals {
         var self: Visuals = .{
             .allocator = allocator,
             .screen_w = screen_w,
@@ -1164,7 +1179,7 @@ pub const Visuals = struct {
         self.clearWidgets();
         self.state = state;
         self.addWidgets() catch |err| {
-            std.debug.warn("error while initializing widgets: {}\n", .{err});
+            std.debug.print("error while initializing widgets: {}\n", .{err});
         };
         self.clear = true;
     }

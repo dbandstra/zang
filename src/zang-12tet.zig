@@ -3,7 +3,7 @@ const std = @import("std");
 const semitone = std.math.pow(f32, 2.0, 1.0 / 12.0);
 
 fn calcNoteFreq(note: i32) f32 {
-    return std.math.pow(f32, semitone, @intToFloat(f32, note));
+    return std.math.pow(f32, semitone, @as(f32, @floatFromInt(note)));
 }
 
 // note: these are relative frequencies, so you'll have to multiply the value

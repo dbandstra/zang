@@ -167,7 +167,7 @@ pub fn Notes(comptime NoteParamsType: type) type {
                 var count: usize = 0;
 
                 const out_len = span.end - span.start;
-                const buf_time = @intToFloat(f32, out_len) / sample_rate;
+                const buf_time = @as(f32, @floatFromInt(out_len)) / sample_rate;
                 var start_t = self.t;
                 const end_t = self.t + buf_time;
 
@@ -177,8 +177,8 @@ pub fn Notes(comptime NoteParamsType: type) type {
                     std.debug.assert(note_t >= start_t);
                     if (note_t < end_t) {
                         const f = (note_t - self.t) / buf_time; // 0 to 1
-                        const rel_frame_index = std.math.min(
-                            @floatToInt(usize, f * @intToFloat(f32, out_len)),
+                        const rel_frame_index = @min(
+                            @as(usize, @intFromFloat(f * @as(f32, @floatFromInt(out_len)))),
                             out_len - 1,
                         );
                         // TODO - do something graceful-ish when count >=
@@ -238,7 +238,7 @@ pub fn Notes(comptime NoteParamsType: type) type {
                 }
 
                 pub fn reset(self: *@This()) void {
-                    for (self.slots) |*maybe_slot| {
+                    for (&self.slots) |*maybe_slot| {
                         maybe_slot.* = null;
                     }
                 }
@@ -249,11 +249,12 @@ pub fn Notes(comptime NoteParamsType: type) type {
                     event_id: usize,
                     note_on: bool,
                 ) ?usize {
+                    _ = event_id; // TODO remove arg?
                     if (!note_on) {
                         // this is a note-off event. try to find the slot where
                         // the note lives. if we don't find it (meaning it got
                         // overridden at some point), return null
-                        return for (self.slots) |maybe_slot, slot_index| {
+                        return for (self.slots, 0..) |maybe_slot, slot_index| {
                             if (maybe_slot) |slot| {
                                 if (slot.note_id == note_id and slot.note_on) {
                                     break slot_index;
@@ -267,7 +268,7 @@ pub fn Notes(comptime NoteParamsType: type) type {
                     // time ago.
                     {
                         var maybe_best: ?usize = null;
-                        for (self.slots) |maybe_slot, slot_index| {
+                        for (self.slots, 0..) |maybe_slot, slot_index| {
                             if (maybe_slot) |slot| {
                                 if (!slot.note_on) {
                                     if (maybe_best) |best| {

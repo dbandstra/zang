@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("common/c.zig");
+const c = @import("common").c;
 
 // records and plays back keypresses. press the button once to start recording,
 // press again to stop recording and play back in a loop what was recorded,
@@ -51,7 +51,7 @@ pub const Recorder = struct {
     drain_keys_held: bool,
 
     fn getTime() f32 {
-        return @intToFloat(f32, c.SDL_GetTicks()) / 1000.0;
+        return @as(f32, @floatFromInt(c.SDL_GetTicks())) / 1000.0;
     }
 
     pub fn init() Recorder {

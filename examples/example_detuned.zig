@@ -1,8 +1,8 @@
 const std = @import("std");
 const zang = @import("zang");
 const mod = @import("modules");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 const StereoEchoes = @import("modules.zig").StereoEchoes(15000);
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;

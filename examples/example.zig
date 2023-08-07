@@ -2,11 +2,11 @@
 
 const std = @import("std");
 const zang = @import("zang");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
-const Parameter = @import("common.zig").Parameter;
+const common = @import("common");
+const c = common.c;
+const Parameter = common.Parameter;
 const Recorder = @import("recorder.zig").Recorder;
-const example = @import(@import("build_options").example);
+const example = @import("example");
 const visual = @import("visual.zig");
 
 const AUDIO_FORMAT = example.AUDIO_FORMAT;
@@ -32,13 +32,9 @@ const UserData = struct {
     ok: bool,
 };
 
-fn audioCallback(
-    userdata_: ?*c_void,
-    stream_: ?[*]u8,
-    len_: c_int,
-) callconv(.C) void {
-    const userdata = @ptrCast(*UserData, @alignCast(@alignOf(*UserData), userdata_.?));
-    const stream = stream_.?[0..@intCast(usize, len_)];
+fn audioCallback(userdata_: ?*anyopaque, stream_: ?[*]u8, len_: c_int) callconv(.C) void {
+    const userdata: *UserData = @ptrCast(@alignCast(userdata_.?));
+    const stream = stream_.?[0..@as(usize, @intCast(len_))];
 
     var outputs: [example.MainModule.num_outputs][]f32 = undefined;
     var temps: [example.MainModule.num_temps][]f32 = undefined;
@@ -95,14 +91,14 @@ const Listener = struct {
 
     fn init(port: u16) !Listener {
         // open UDP socket on port 8888
-        const socket = try std.os.socket(std.os.AF_INET, std.os.SOCK_DGRAM, std.os.IPPROTO_UDP);
-        _ = try std.os.fcntl(socket, std.os.F_SETFL, std.os.O_NONBLOCK);
-        var addr: std.os.sockaddr_in = .{
-            .port = std.mem.nativeToBig(std.os.in_port_t, port),
+        const socket = try std.os.socket(std.os.AF.INET, std.os.SOCK.DGRAM, std.os.IPPROTO.UDP);
+        _ = try std.os.fcntl(socket, std.os.F.SETFL, std.os.O.NONBLOCK);
+        var addr: std.os.sockaddr.in = .{
+            .port = std.mem.nativeToBig(u16, port),
             .addr = 0, // INADDR_ANY
         };
-        try std.os.bind(socket, @ptrCast(*std.os.sockaddr, &addr), @sizeOf(@TypeOf(addr)));
-        std.debug.warn("listening on port {}\n", .{port});
+        try std.os.bind(socket, @ptrCast(&addr), @sizeOf(@TypeOf(addr)));
+        std.debug.print("listening on port {}\n", .{port});
         return Listener{ .socket = socket };
     }
 
@@ -113,10 +109,10 @@ const Listener = struct {
     fn checkForEvent(self: *Listener) !?ListenerEvent {
         var buf: [100]u8 = undefined;
 
-        var from_addr: std.os.sockaddr_in = undefined;
+        var from_addr: std.os.sockaddr.in = undefined;
         var from_addr_len: u32 = @sizeOf(@TypeOf(from_addr));
 
-        const num_bytes = std.os.recvfrom(self.socket, &buf, buf.len, @ptrCast(*std.os.sockaddr, &from_addr), &from_addr_len) catch |err| {
+        const num_bytes = std.os.recvfrom(self.socket, &buf, buf.len, @ptrCast(&from_addr), &from_addr_len) catch |err| {
             if (err == error.WouldBlock) {
                 return null;
             } else {
@@ -179,7 +175,7 @@ pub fn main() !void {
 
     g_redraw_event = c.SDL_RegisterEvents(1);
 
-    const SDL_WINDOWPOS_UNDEFINED = @bitCast(c_int, c.SDL_WINDOWPOS_UNDEFINED_MASK);
+    const SDL_WINDOWPOS_UNDEFINED: c_int = @bitCast(c.SDL_WINDOWPOS_UNDEFINED_MASK);
     const window = c.SDL_CreateWindow(
         "zang",
         SDL_WINDOWPOS_UNDEFINED,
@@ -193,7 +189,7 @@ pub fn main() !void {
     };
     errdefer c.SDL_DestroyWindow(window);
 
-    const screen = @ptrCast(*c.SDL_Surface, c.SDL_GetWindowSurface(window) orelse {
+    const screen: *c.SDL_Surface = @ptrCast(c.SDL_GetWindowSurface(window) orelse {
         c.SDL_Log("Unable to get window surface: %s", c.SDL_GetError());
         return error.SDLInitializationFailed;
     });
@@ -229,13 +225,13 @@ pub fn main() !void {
     var maybe_listener: ?Listener = null;
     if (std.process.getEnvVarOwned(allocator, "ZANG_LISTEN_PORT") catch null) |port_str| {
         const maybe_port = std.fmt.parseInt(u16, port_str, 10) catch blk: {
-            std.debug.warn("invalid value for ZANG_LISTEN_PORT\n", .{});
+            std.debug.print("invalid value for ZANG_LISTEN_PORT\n", .{});
             break :blk null;
         };
         allocator.free(port_str);
         if (maybe_port) |port| {
             maybe_listener = Listener.init(port) catch |err| blk: {
-                std.debug.warn("Listener.init failed: {}\n", .{err});
+                std.debug.print("Listener.init failed: {}\n", .{err});
                 break :blk null;
             };
         }
@@ -253,7 +249,7 @@ pub fn main() !void {
     var param_dirty_counter: u32 = 0;
     var recorder = Recorder.init();
 
-    var prng = std.rand.DefaultPrng.init(@bitCast(u64, std.time.timestamp()));
+    var prng = std.rand.DefaultPrng.init(@bitCast(std.time.timestamp()));
 
     var event: c.SDL_Event = undefined;
 
@@ -378,14 +374,14 @@ pub fn main() !void {
                             // randomize all parameters
                             c.SDL_LockAudioDevice(device);
 
-                            for (userdata.main_module.parameters) |*param, ii| {
+                            for (&userdata.main_module.parameters) |*param| {
                                 if (param.favor_low_values) {
-                                    var f = prng.random.float(f32);
+                                    var f = prng.random().float(f32);
                                     f = std.math.pow(f32, f, 3.0);
-                                    f *= @intToFloat(f32, param.num_values);
-                                    param.current_value = @floatToInt(u32, f);
+                                    f *= @as(f32, @floatFromInt(param.num_values));
+                                    param.current_value = @intFromFloat(f);
                                 } else {
-                                    param.current_value = prng.random.uintLessThan(u32, param.num_values);
+                                    param.current_value = prng.random().uintLessThan(u32, param.num_values);
                                 }
                             }
                             param_dirty_counter +%= 1;
@@ -445,10 +441,8 @@ pub fn main() !void {
                 },
                 c.SDL_MOUSEMOTION => {
                     if (@hasDecl(example.MainModule, "mouseEvent")) {
-                        const x = @intToFloat(f32, event.motion.x) /
-                            @intToFloat(f32, screen_w - 1);
-                        const y = @intToFloat(f32, event.motion.y) /
-                            @intToFloat(f32, screen_h - 1);
+                        const x = @as(f32, @floatFromInt(event.motion.x)) / @as(f32, @floatFromInt(screen_w - 1));
+                        const y = @as(f32, @floatFromInt(event.motion.y)) / @as(f32, @floatFromInt(screen_h - 1));
                         const impulse_frame = getImpulseFrame();
 
                         c.SDL_LockAudioDevice(device);
@@ -461,8 +455,9 @@ pub fn main() !void {
 
                     _ = c.SDL_LockSurface(screen);
 
-                    const pitch = @intCast(usize, screen.pitch) >> 2;
-                    const pixels = @ptrCast([*]u32, @alignCast(@alignOf(u32), screen.pixels))[0 .. screen_h * pitch];
+                    const pitch = @as(usize, @intCast(screen.pitch)) >> 2;
+                    const pixels_ptr: [*]u32 = @ptrCast(@alignCast(screen.pixels));
+                    const pixels = pixels_ptr[0 .. screen_h * pitch];
 
                     const vis_screen: visual.Screen = .{
                         .width = screen_w,
@@ -490,7 +485,7 @@ pub fn main() !void {
 
             recorderPlayback(device, &userdata, &recorder);
             if (maybe_listener) |*listener| {
-                if (!listenerStuff(device, &userdata, listener))
+                if (!listenerStuff(device, &userdata, listener, filename))
                     maybe_listener = null;
             }
         }
@@ -500,7 +495,7 @@ pub fn main() !void {
         if (!any_event) {
             recorderPlayback(device, &userdata, &recorder);
             if (maybe_listener) |*listener| {
-                if (!listenerStuff(device, &userdata, listener))
+                if (!listenerStuff(device, &userdata, listener, filename))
                     maybe_listener = null;
             }
         }
@@ -534,9 +529,10 @@ fn listenerStuff(
     device: c.SDL_AudioDeviceID,
     userdata: *UserData,
     listener: *Listener,
+    filename: []const u8,
 ) bool {
     const maybe_event = listener.checkForEvent() catch |err| {
-        std.debug.warn("listener.checkForEvent failed: {}\n", .{err});
+        std.debug.print("listener.checkForEvent failed: {}\n", .{err});
         listener.deinit();
         return false;
     };

@@ -1,8 +1,8 @@
 const std = @import("std");
 const zang = @import("zang");
 const mod = @import("modules");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
 pub const AUDIO_SAMPLE_RATE = 48000;
@@ -104,7 +104,7 @@ pub const MainModule = struct {
                 if (maybe_result1) |result1| {
                     const inner_span: zang.Span = .{
                         .start = start,
-                        .end = std.math.min(result0.span.end, result1.span.end),
+                        .end = @min(result0.span.end, result1.span.end),
                     };
                     zang.addScalarInto(inner_span, outputs[1], result0.params.freq);
                     self.osc.paint(
@@ -164,8 +164,7 @@ pub const MainModule = struct {
             }
         }
         if (key >= c.SDLK_1 and key <= c.SDLK_9) {
-            const f = @intToFloat(f32, key - c.SDLK_1) /
-                @intToFloat(f32, c.SDLK_9 - c.SDLK_1);
+            const f = @as(f32, @floatFromInt(key - c.SDLK_1)) / @as(f32, @floatFromInt(c.SDLK_9 - c.SDLK_1));
             if (down or (if (self.key1) |nh| nh == key else false)) {
                 self.key1 = if (down) key else null;
                 self.iq1.push(impulse_frame, self.idgen1.nextId(), .{

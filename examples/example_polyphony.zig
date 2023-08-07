@@ -3,8 +3,8 @@
 
 const zang = @import("zang");
 const mod = @import("modules");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 const Instrument = @import("modules.zig").NiceInstrument;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
@@ -77,7 +77,7 @@ const Polyphony = struct {
             }
         }
 
-        for (self.voices) |*voice| {
+        for (&self.voices) |*voice| {
             var ctr = voice.trigger.counter(span, voice.iq.consume());
             while (voice.trigger.next(&ctr)) |result| {
                 voice.instrument.paint(
@@ -168,7 +168,7 @@ pub const MainModule = struct {
             self.dec_mode = (self.dec_mode + 1) % 7;
             return false;
         }
-        for (common.key_bindings) |kb, i| {
+        for (common.key_bindings, 0..) |kb, i| {
             if (kb.key == key) {
                 self.current_params.note_held[i] = down;
                 self.iq.push(impulse_frame, self.idgen.nextId(), self.current_params);

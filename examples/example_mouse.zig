@@ -1,7 +1,7 @@
 const zang = @import("zang");
 const mod = @import("modules");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 const PhaseModOscillator = @import("modules.zig").PhaseModOscillator;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;

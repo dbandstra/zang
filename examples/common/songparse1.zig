@@ -36,7 +36,7 @@ pub fn Parser(comptime num_columns: usize) type {
             const octave = parser.contents[parser.index + 2];
 
             const offset = if (octave >= '0' and octave <= '9')
-                @intCast(i32, octave - '0') * 12 - 57
+                @as(i32, @intCast(octave - '0')) * 12 - 57
             else
                 return null;
 
@@ -58,7 +58,7 @@ pub fn Parser(comptime num_columns: usize) type {
 
             parser.index += 3;
 
-            const exp = @intToFloat(f32, offset + semitone) / 12.0;
+            const exp = @as(f32, @floatFromInt(offset + semitone)) / 12.0;
             return parser.a4 * std.math.pow(f32, 2.0, exp);
         }
 

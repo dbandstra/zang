@@ -1,7 +1,7 @@
 const zang = @import("zang");
 const mod = @import("modules");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
 pub const AUDIO_SAMPLE_RATE = 48000;
@@ -133,12 +133,12 @@ pub const MainModule = struct {
     // - the frequency is always that of the highest key held
     // - note-off only occurs when all keys are released
     pub fn keyEvent(self: *MainModule, key: i32, down: bool, impulse_frame: usize) bool {
-        for (common.key_bindings) |kb, i| {
+        for (common.key_bindings, 0..) |kb, i| {
             if (kb.key != key) {
                 continue;
             }
 
-            const key_index = @intCast(u6, i);
+            const key_index: u6 = @intCast(i);
             const key_flag = @as(u64, 1) << key_index;
             const prev_keys_held = self.keys_held;
 
@@ -162,7 +162,7 @@ pub const MainModule = struct {
                         .note_on = false,
                     });
                 } else {
-                    const rel_freq = common.key_bindings[63 - @clz(u64, self.keys_held)].rel_freq;
+                    const rel_freq = common.key_bindings[63 - @as(u64, @clz(self.keys_held))].rel_freq;
                     self.iq.push(impulse_frame, self.idgen.nextId(), .{
                         .sample_rate = AUDIO_SAMPLE_RATE,
                         .freq = a4 * rel_freq,

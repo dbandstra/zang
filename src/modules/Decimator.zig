@@ -1,4 +1,4 @@
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 
 pub const num_outputs = 1;
 pub const num_temps = 0;
@@ -26,6 +26,9 @@ pub fn paint(
     note_id_changed: bool,
     params: Params,
 ) void {
+    _ = temps;
+    _ = note_id_changed;
+
     const output = outputs[0];
 
     if (params.fake_sample_rate >= params.sample_rate) {

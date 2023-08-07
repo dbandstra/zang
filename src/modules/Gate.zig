@@ -1,6 +1,6 @@
 // this is a simple version of the Envelope
 
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 
 pub const num_outputs = 1;
 pub const num_temps = 0;
@@ -20,6 +20,10 @@ pub fn paint(
     note_id_changed: bool,
     params: Params,
 ) void {
+    _ = self;
+    _ = temps;
+    _ = note_id_changed;
+
     if (params.note_on) {
         zang.addScalarInto(span, outputs[0], 1.0);
     }

@@ -1,8 +1,8 @@
 const zang = @import("zang");
 const note_frequencies = @import("zang-12tet");
 const mod = @import("modules");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
 pub const AUDIO_SAMPLE_RATE = 48000;
