@@ -1,8 +1,8 @@
 const std = @import("std");
 const zang = @import("zang");
 const zangscript = @import("zangscript");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 const modules = @import("modules.zig");
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
@@ -148,7 +148,7 @@ pub const MainModule = struct {
 
         const poly_iap = self.dispatcher.dispatch(iap);
 
-        for (self.voices) |*voice, i| {
+        for (self.voices, 0..) |*voice, i| {
             var ctr = voice.trigger.counter(span, poly_iap[i]);
             while (voice.trigger.next(&ctr)) |result| {
                 const params = voice.module.makeParams(Params, result.params) orelse return;
@@ -167,7 +167,7 @@ pub const MainModule = struct {
     }
 
     pub fn keyEvent(self: *MainModule, key: i32, down: bool, impulse_frame: usize) bool {
-        for (common.key_bindings) |kb, i| {
+        for (common.key_bindings, 0..) |kb, i| {
             if (kb.key != key) {
                 continue;
             }

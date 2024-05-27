@@ -51,6 +51,7 @@ pub const Painter = struct {
 
     // paint a constant value until the end of the buffer
     pub fn paintFlat(self: *Painter, state: *PaintState, value: f32) void {
+        _ = self;
         const buf = state.buf;
         addScalarInto(Span.init(state.i, buf.len), buf, value);
         state.i = buf.len;

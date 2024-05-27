@@ -2,8 +2,8 @@ const std = @import("std");
 const zang = @import("zang");
 const mod = @import("modules");
 const wav = @import("zig-wav");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
 pub const AUDIO_SAMPLE_RATE = 44100;
@@ -57,7 +57,7 @@ pub const MainModule = struct {
     sampler: mod.Sampler,
     trigger: zang.Trigger(mod.Sampler.Params),
     distortion: mod.Distortion,
-    r: std.rand.Xoroshiro128,
+    r: std.rand.DefaultPrng,
     distort: bool,
     first: bool,
 
@@ -122,7 +122,7 @@ pub const MainModule = struct {
         if (down and key == c.SDLK_SPACE) {
             self.iq.push(impulse_frame, self.idgen.nextId(), .{
                 .sample_rate = AUDIO_SAMPLE_RATE *
-                    (0.5 + 1.0 * self.r.random.float(f32)),
+                    (0.5 + 1.0 * self.r.random().float(f32)),
                 .sample = self.sample,
                 .channel = 0,
                 .loop = true,
@@ -131,7 +131,7 @@ pub const MainModule = struct {
         if (down and key == c.SDLK_b) {
             self.iq.push(impulse_frame, self.idgen.nextId(), .{
                 .sample_rate = AUDIO_SAMPLE_RATE *
-                    -(0.5 + 1.0 * self.r.random.float(f32)),
+                    -(0.5 + 1.0 * self.r.random().float(f32)),
                 .sample = self.sample,
                 .channel = 0,
                 .loop = true,

@@ -3,7 +3,7 @@
 // https://github.com/farbrausch/fr_public/blob/master/v2/synth_core.cpp
 
 const std = @import("std");
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 
 const fcdcoffset: f32 = 3.814697265625e-6; // 2^-18
 
@@ -49,6 +49,9 @@ pub fn paint(
     note_id_changed: bool,
     params: Params,
 ) void {
+    _ = temps;
+    _ = note_id_changed;
+
     const output = outputs[0][span.start..span.end];
     const input = params.input[span.start..span.end];
 

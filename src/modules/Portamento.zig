@@ -1,4 +1,4 @@
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 
 pub const num_outputs = 1;
 pub const num_temps = 0;
@@ -26,6 +26,8 @@ pub fn paint(
     note_id_changed: bool,
     params: Params,
 ) void {
+    _ = temps;
+
     const output = outputs[0][span.start..span.end];
 
     const curve = if (params.note_on and params.prev_note_on)

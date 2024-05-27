@@ -1,6 +1,7 @@
 .vscode/
 *.swp
 zig-cache/
+zig-out/
 
 /examples/scriptgen.zig
 /out.wav

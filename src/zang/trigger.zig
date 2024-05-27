@@ -68,6 +68,7 @@ pub fn Trigger(comptime ParamsType: type) type {
             span: Span,
             iap: Notes(ParamsType).ImpulsesAndParamses,
         ) Counter {
+            _ = self;
             return Counter{
                 .iap = iap,
                 .impulse_index = 0,
@@ -115,7 +116,7 @@ pub fn Trigger(comptime ParamsType: type) type {
                         // for now
                         return NoteSpan{
                             .start = ctr.start,
-                            .end = std.math.min(ctr.end, next_impulse_frame),
+                            .end = @min(ctr.end, next_impulse_frame),
                             .note = note,
                         };
                     } else {
@@ -139,7 +140,7 @@ pub fn Trigger(comptime ParamsType: type) type {
             const impulses = ctr.iap.impulses[ctr.impulse_index..];
             const paramses = ctr.iap.paramses[ctr.impulse_index..];
 
-            for (impulses) |impulse, i| {
+            for (impulses, 0..) |impulse, i| {
                 if (impulse.frame >= ctr.end) {
                     // this impulse (and all after it, since they're in
                     // chronological order) starts after the end of the buffer.
@@ -165,7 +166,7 @@ pub fn Trigger(comptime ParamsType: type) type {
                 // exists), or the end of the buffer, whichever comes first
                 const note_end_clipped =
                     if (i + 1 < impulses.len)
-                    std.math.min(ctr.end, impulses[i + 1].frame)
+                    @min(ctr.end, impulses[i + 1].frame)
                 else
                     ctr.end;
 

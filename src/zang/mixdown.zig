@@ -48,11 +48,11 @@ fn mixDownS16LSB(
         else if (value != value) // NaN
             @as(i16, 0)
         else
-            @floatToInt(i16, value);
+            @as(i16, @intFromFloat(value));
 
         const index = (i * num_channels + channel_index) * 2;
-        dst[index + 0] = @intCast(u8, clamped_value & 0xFF);
-        dst[index + 1] = @intCast(u8, (clamped_value >> 8) & 0xFF);
+        dst[index + 0] = @intCast(clamped_value & 0xFF);
+        dst[index + 1] = @intCast((clamped_value >> 8) & 0xFF);
     }
 }
 
@@ -79,8 +79,8 @@ fn mixDownS8(
         else if (value != value) // NaN
             @as(i8, 0)
         else
-            @floatToInt(i8, value);
+            @as(i8, @intFromFloat(value));
 
-        dst[i * num_channels + channel_index] = @bitCast(u8, clamped_value);
+        dst[i * num_channels + channel_index] = @bitCast(clamped_value);
     }
 }

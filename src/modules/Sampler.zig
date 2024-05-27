@@ -1,5 +1,5 @@
 const std = @import("std");
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 
 // FIXME - no effort at all has been made to optimize the sampler module
 // FIXME - use a better resampling filter
@@ -29,7 +29,7 @@ fn decodeSigned(
     const subslice = slice[index * byte_count .. (index + 1) * byte_count];
     const sval = std.mem.readIntSliceLittle(T, subslice);
     const max = 1 << @as(u32, byte_count * 8 - 1);
-    return @intToFloat(f32, sval) / @intToFloat(f32, max);
+    return @as(f32, @floatFromInt(sval)) / @as(f32, @floatFromInt(max));
 }
 
 fn getSample(params: Params, index1: i32) f32 {
@@ -39,15 +39,15 @@ fn getSample(params: Params, index1: i32) f32 {
         .signed24_lsb => 3,
         .signed32_lsb => 4,
     };
-    const num_samples = @intCast(i32, params.sample.data.len / bytes_per_sample / params.sample.num_channels);
+    const num_samples: i32 = @intCast(params.sample.data.len / bytes_per_sample / params.sample.num_channels);
     const index = if (params.loop) @mod(index1, num_samples) else index1;
 
     if (index >= 0 and index < num_samples) {
-        const i = @intCast(usize, index) * params.sample.num_channels +
+        const i = @as(usize, @intCast(index)) * params.sample.num_channels +
             params.channel;
 
         return switch (params.sample.format) {
-            .unsigned8 => (@intToFloat(f32, params.sample.data[i]) - 127.5) / 127.5,
+            .unsigned8 => (@as(f32, @floatFromInt(params.sample.data[i])) - 127.5) / 127.5,
             .signed16_lsb => decodeSigned(2, params.sample.data, i),
             .signed24_lsb => decodeSigned(3, params.sample.data, i),
             .signed32_lsb => decodeSigned(4, params.sample.data, i),
@@ -82,6 +82,8 @@ pub fn paint(
     note_id_changed: bool,
     params: Params,
 ) void {
+    _ = temps;
+
     if (params.channel >= params.sample.num_channels) {
         return;
     }
@@ -92,7 +94,7 @@ pub fn paint(
 
     const out = outputs[0][span.start..span.end];
 
-    const ratio = @intToFloat(f32, params.sample.sample_rate) / params.sample_rate;
+    const ratio = @as(f32, @floatFromInt(params.sample.sample_rate)) / params.sample_rate;
 
     if (ratio < 0.0 and !params.loop) {
         // i don't think it makes sense to play backwards without looping
@@ -102,21 +104,21 @@ pub fn paint(
     // FIXME - pulled these epsilon values out of my ass
     if (ratio > 0.9999 and ratio < 1.0001) {
         // no resampling needed
-        const t = @floatToInt(i32, std.math.round(self.t));
+        const t: i32 = @intFromFloat(std.math.round(self.t));
 
         var i: u31 = 0;
         while (i < out.len) : (i += 1) {
             out[i] += getSample(params, t + @as(i32, i));
         }
 
-        self.t += @intToFloat(f32, out.len);
+        self.t += @as(f32, @floatFromInt(out.len));
     } else {
         // resample
         var i: u31 = 0;
         while (i < out.len) : (i += 1) {
-            const t0 = @floatToInt(i32, std.math.floor(self.t));
+            const t0: i32 = @intFromFloat(std.math.floor(self.t));
             const t1 = t0 + 1;
-            const tfrac = @intToFloat(f32, t1) - self.t;
+            const tfrac = @as(f32, @floatFromInt(t1)) - self.t;
 
             const s0 = getSample(params, t0);
             const s1 = getSample(params, t1);
@@ -128,7 +130,7 @@ pub fn paint(
         }
     }
 
-    if (self.t >= @intToFloat(f32, params.sample.data.len) and params.loop) {
-        self.t -= @intToFloat(f32, params.sample.data.len);
+    if (self.t >= @as(f32, @floatFromInt(params.sample.data.len)) and params.loop) {
+        self.t -= @as(f32, @floatFromInt(params.sample.data.len));
     }
 }

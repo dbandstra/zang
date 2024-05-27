@@ -2,7 +2,7 @@
 // if `speed` is 1, it will cycle once per second.
 
 const std = @import("std");
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 
 pub const num_outputs = 1;
 pub const num_temps = 0;
@@ -27,6 +27,9 @@ pub fn paint(
     note_id_changed: bool,
     params: Params,
 ) void {
+    _ = temps;
+    _ = note_id_changed;
+
     // TODO it should be possible to optimize the loop by pre-calculating
     // how many iterations you should be able to do without truncating
     switch (params.speed) {

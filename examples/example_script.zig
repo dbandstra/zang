@@ -1,8 +1,8 @@
 const std = @import("std");
 const zang = @import("zang");
 const note_frequencies = @import("zang-12tet");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 const DemoPlayer = @import("scriptgen.zig").DemoPlayer;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;

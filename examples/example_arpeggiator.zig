@@ -2,8 +2,8 @@
 // impulses to impulses (somehow), then you could use it with anything...
 
 const zang = @import("zang");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 const Instrument = @import("modules.zig").HardSquareInstrument;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
@@ -53,7 +53,7 @@ const Arpeggiator = struct {
         temps: [num_temps][]f32,
         params: Params,
     ) void {
-        const note_duration = @floatToInt(usize, 0.03 * params.sample_rate);
+        const note_duration: usize = @intFromFloat(0.03 * params.sample_rate);
 
         // TODO - if only one key is held, try to reuse the previous impulse id
         // to prevent the envelope from retriggering on the same note.
@@ -157,7 +157,7 @@ pub const MainModule = struct {
     }
 
     pub fn keyEvent(self: *MainModule, key: i32, down: bool, impulse_frame: usize) bool {
-        for (common.key_bindings) |kb, i| {
+        for (common.key_bindings, 0..) |kb, i| {
             if (kb.key == key) {
                 self.current_params.note_held[i] = down;
                 self.iq.push(impulse_frame, self.idgen.nextId(), self.current_params);

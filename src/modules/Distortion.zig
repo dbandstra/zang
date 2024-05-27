@@ -3,7 +3,7 @@
 // https://github.com/farbrausch/fr_public/blob/master/v2/synth_core.cpp
 
 const std = @import("std");
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 
 pub const Type = enum {
     overdrive,
@@ -32,6 +32,10 @@ pub fn paint(
     note_id_changed: bool,
     params: Params,
 ) void {
+    _ = self;
+    _ = temps;
+    _ = note_id_changed;
+
     const output = outputs[0];
 
     const gain1 = std.math.pow(f32, 2.0, params.ingain * 8.0 - 2.0);

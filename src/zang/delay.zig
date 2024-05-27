@@ -17,7 +17,7 @@ pub fn Delay(comptime delay_samples: usize) type {
         }
 
         pub fn reset(self: *@This()) void {
-            std.mem.set(f32, &self.delay_buffer, 0.0);
+            @memset(&self.delay_buffer, 0.0);
             self.delay_buffer_index = 0.0;
         }
 
@@ -32,7 +32,7 @@ pub fn Delay(comptime delay_samples: usize) type {
                 out;
 
             const index = self.delay_buffer_index;
-            const len = std.math.min(delay_samples - index, actual_out.len);
+            const len = @min(delay_samples - index, actual_out.len);
             const delay_slice = self.delay_buffer[index .. index + len];
 
             // paint from delay buffer to output
@@ -66,7 +66,7 @@ pub fn Delay(comptime delay_samples: usize) type {
             // we'll have to do this in up to two steps (in case we are
             // wrapping around the delay buffer)
             const index = self.delay_buffer_index;
-            const len = std.math.min(delay_samples - index, input.len);
+            const len = @min(delay_samples - index, input.len);
             const delay_slice = self.delay_buffer[index .. index + len];
 
             // paint from input into delay buffer

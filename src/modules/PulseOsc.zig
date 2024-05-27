@@ -7,7 +7,7 @@
 // each sample. however it doesn't support sweeping the input params (frequency
 // etc.)
 
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 
 const fc32bit: f32 = 1 << 32;
 
@@ -17,12 +17,12 @@ inline fn clamp01(v: f32) f32 {
 
 // 32-bit value into float with 23 bits precision
 inline fn utof23(x: u32) f32 {
-    return @bitCast(f32, (x >> 9) | 0x3f800000) - 1;
+    return @as(f32, @bitCast((x >> 9) | 0x3f800000)) - 1;
 }
 
 // float from [0,1) into 0.32 unsigned fixed-point
 inline fn ftou32(v: f32) u32 {
-    return @floatToInt(u32, v * fc32bit * 0.99995);
+    return @intFromFloat(v * fc32bit * 0.99995);
 }
 
 pub const num_outputs = 1;
@@ -49,6 +49,9 @@ pub fn paint(
     note_id_changed: bool,
     params: Params,
 ) void {
+    _ = temps;
+    _ = note_id_changed;
+
     switch (params.freq) {
         .constant => |freq| {
             self.paintConstantFrequency(
@@ -83,7 +86,7 @@ fn paintConstantFrequency(
     // preserved the variable names they used, but condensed the code
     var cnt = self.cnt;
     const SRfcobasefrq = fc32bit / sample_rate;
-    const ifreq = @floatToInt(u32, SRfcobasefrq * freq);
+    const ifreq: u32 = @intFromFloat(SRfcobasefrq * freq);
     const brpt = ftou32(clamp01(color));
     const gain = 0.7;
     const gdf = gain / utof23(ifreq);
@@ -94,8 +97,8 @@ fn paintConstantFrequency(
     var i: usize = 0;
     while (i < output.len) : (i += 1) {
         const p = utof23(cnt);
-        state = ((state << 1) | @boolToInt(cnt < brpt)) & 3;
-        const transition = state | (@as(u32, @boolToInt(cnt < ifreq)) << 2);
+        state = ((state << 1) | @intFromBool(cnt < brpt)) & 3;
+        const transition = state | (@as(u32, @intFromBool(cnt < ifreq)) << 2);
         output[i] += switch (transition) {
             0b011 => gain, // up
             0b000 => -gain, // down
@@ -127,17 +130,17 @@ fn paintControlledFrequency(
     const gain = 0.7;
     const col = utof23(brpt);
 
-    for (freq) |s_freq, i| {
+    for (freq, 0..) |s_freq, i| {
         if (s_freq < 0 or s_freq > sample_rate / 8.0)
             continue;
-        const ifreq = @floatToInt(u32, SRfcobasefrq * s_freq);
+        const ifreq: u32 = @intFromFloat(SRfcobasefrq * s_freq);
         const gdf = gain / utof23(ifreq);
         const cc121 = gdf * 2.0 * (col - 1.0) + gain;
         const cc212 = gdf * 2.0 * col - gain;
         const p = utof23(cnt);
-        const c: u32 = @boolToInt((cnt -% ifreq) < brpt);
-        const state: u32 = @boolToInt(cnt < brpt) | (c << 1);
-        const transition = state | (@as(u32, @boolToInt(cnt < ifreq)) << 2);
+        const c: u32 = @intFromBool((cnt -% ifreq) < brpt);
+        const state: u32 = @intFromBool(cnt < brpt) | (c << 1);
+        const transition = state | (@as(u32, @intFromBool(cnt < ifreq)) << 2);
         output[i] += switch (transition) {
             0b011 => gain, // up
             0b000 => -gain, // down

@@ -3,7 +3,7 @@
 // https://github.com/farbrausch/fr_public/blob/master/v2/synth_core.cpp
 
 const std = @import("std");
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 
 const fc32bit: f32 = 1 << 32;
 
@@ -17,12 +17,12 @@ inline fn clamp01(v: f32) f32 {
 
 // 32-bit value into float with 23 bits precision
 inline fn utof23(x: u32) f32 {
-    return @bitCast(f32, (x >> 9) | 0x3f800000) - 1;
+    return @as(f32, @bitCast((x >> 9) | 0x3f800000)) - 1;
 }
 
 // float from [0,1) into 0.32 unsigned fixed-point
 inline fn ftou32(v: f32) u32 {
-    return @floatToInt(u32, v * fc32bit * 0.99995);
+    return @intFromFloat(v * fc32bit * 0.99995);
 }
 
 pub const num_outputs = 1;
@@ -51,6 +51,9 @@ pub fn paint(
     note_id_changed: bool,
     params: Params,
 ) void {
+    _ = temps;
+    _ = note_id_changed;
+
     switch (params.freq) {
         .constant => |freq| {
             self.paintConstantFrequency(
@@ -85,7 +88,7 @@ fn paintConstantFrequency(
     // preserved the variable names they used, but condensed the code
     var cnt = self.cnt;
     const SRfcobasefrq = fc32bit / sample_rate;
-    const ifreq = @floatToInt(u32, SRfcobasefrq * freq);
+    const ifreq: u32 = @intFromFloat(SRfcobasefrq * freq);
     const brpt = ftou32(clamp01(color));
     const gain = 0.7;
     const f = utof23(ifreq);
@@ -98,8 +101,8 @@ fn paintConstantFrequency(
     var i: usize = 0;
     while (i < output.len) : (i += 1) {
         const p = utof23(cnt) - col;
-        state = ((state << 1) | @boolToInt(cnt < brpt)) & 3;
-        const s = state | (@as(u32, @boolToInt(cnt < ifreq)) << 2);
+        state = ((state << 1) | @intFromBool(cnt < brpt)) & 3;
+        const s = state | (@as(u32, @intFromBool(cnt < ifreq)) << 2);
         output[i] += gain + switch (s) {
             0b011 => c1 * (p + p - f), // up
             0b000 => c2 * (p + p - f), // down

@@ -366,6 +366,9 @@ pub fn SimpleDelay(comptime DELAY_SAMPLES: usize) type {
             note_id_changed: bool,
             params: Params,
         ) void {
+            _ = temps;
+            _ = note_id_changed;
+
             var start = span.start;
             const end = span.end;
 

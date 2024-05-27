@@ -1,8 +1,8 @@
 const std = @import("std");
 const zang = @import("zang");
 const mod = @import("modules");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
 pub const AUDIO_SAMPLE_RATE = 48000;
@@ -128,7 +128,7 @@ pub const MainModule = struct {
     player: LaserPlayer,
     trigger: zang.Trigger(LaserPlayer.Params),
 
-    r: std.rand.Xoroshiro128,
+    r: std.rand.DefaultPrng,
 
     pub fn init() MainModule {
         return .{
@@ -161,7 +161,7 @@ pub const MainModule = struct {
     pub fn keyEvent(self: *MainModule, key: i32, down: bool, impulse_frame: usize) bool {
         if (down) {
             const variance = 0.3;
-            const freq_mul = 1.0 + self.r.random.float(f32) * variance -
+            const freq_mul = 1.0 + self.r.random().float(f32) * variance -
                 0.5 * variance;
 
             switch (key) {
@@ -174,13 +174,13 @@ pub const MainModule = struct {
                         .sample_rate = AUDIO_SAMPLE_RATE,
                         .freq_mul = freq_mul,
                         .carrier_mul = 2.0 +
-                            self.r.random.float(f32) * carrier_mul_variance -
+                            self.r.random().float(f32) * carrier_mul_variance -
                             0.5 * carrier_mul_variance,
                         .modulator_mul = 0.5 +
-                            self.r.random.float(f32) * modulator_mul_variance -
+                            self.r.random().float(f32) * modulator_mul_variance -
                             0.5 * modulator_mul_variance,
                         .modulator_rad = 0.5 +
-                            self.r.random.float(f32) * modulator_rad_variance -
+                            self.r.random().float(f32) * modulator_rad_variance -
                             0.5 * modulator_rad_variance,
                     });
                 },

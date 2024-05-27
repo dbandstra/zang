@@ -1,9 +1,8 @@
 const std = @import("std");
 const zang = @import("zang");
 const f = @import("zang-12tet");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
-const util = @import("common/util.zig");
+const common = @import("common");
+const c = common.c;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
 pub const AUDIO_SAMPLE_RATE = 48000;
@@ -158,10 +157,10 @@ fn doParse(parser: *Parser) !void {
                 .notes => |notes| {
                     const old_instrument_num_notes = instrument_num_notes;
 
-                    for (notes) |note, col| {
+                    for (notes, 0..) |note, col| {
                         const instrument_index = blk: {
                             var first_column: usize = 0;
-                            for (COLUMNS_PER_VOICE) |num_columns, track_index| {
+                            for (COLUMNS_PER_VOICE, 0..) |num_columns, track_index| {
                                 if (col < first_column + num_columns) {
                                     break :blk track_index;
                                 }
@@ -220,13 +219,13 @@ fn doParse(parser: *Parser) !void {
                     while (i < NUM_INSTRUMENTS) : (i += 1) {
                         const start = old_instrument_num_notes[i];
                         const end = instrument_num_notes[i];
-                        std.sort.sort(
+                        std.mem.sort(
                             zang.Notes(MyNoteParams).SongEvent,
                             all_notes_arr[i][start..end],
                             {},
                             struct {
                                 fn compare(
-                                    context: void,
+                                    _: void,
                                     a: zang.Notes(MyNoteParams).SongEvent,
                                     b: zang.Notes(MyNoteParams).SongEvent,
                                 ) bool {
@@ -252,9 +251,9 @@ fn doParse(parser: *Parser) !void {
 
     //i = 0; while (i < NUM_INSTRUMENTS) : (i += 1) {
     //    if (i == 1) {
-    //        std.debug.warn("instrument {}:\n", .{ i });
+    //        std.debug.print("instrument {}:\n", .{ i });
     //        for (all_notes[i]) |note| {
-    //            std.debug.warn("t={}  id={}  freq={}  note_on={}\n", .{
+    //            std.debug.print("t={}  id={}  freq={}  note_on={}\n", .{
     //                note.t,
     //                note.id,
     //                note.params.freq,
@@ -269,7 +268,7 @@ fn parse() void {
     var buffer: [150000]u8 = undefined;
 
     const contents = std.fs.cwd().readFile("examples/example_song.txt", &buffer) catch {
-        std.debug.warn("failed to read file\n", .{});
+        std.debug.print("failed to read file\n", .{});
         return;
     };
 
@@ -281,7 +280,7 @@ fn parse() void {
     };
 
     doParse(&parser) catch {
-        std.debug.warn("parse failed on line {}\n", .{parser.line_index + 1});
+        std.debug.print("parse failed on line {}\n", .{parser.line_index + 1});
     };
 }
 
@@ -320,7 +319,7 @@ fn Voice(comptime T: type) type {
         fn reset(self: *@This()) void {
             self.tracker.reset();
             self.dispatcher.reset();
-            for (self.sub_voices) |*sub_voice| {
+            for (&self.sub_voices) |*sub_voice| {
                 sub_voice.trigger.reset();
             }
         }
@@ -335,7 +334,7 @@ fn Voice(comptime T: type) type {
 
             const poly_iap = self.dispatcher.dispatch(iap);
 
-            for (self.sub_voices) |*sub_voice, i| {
+            for (&self.sub_voices, 0..) |*sub_voice, i| {
                 var ctr = sub_voice.trigger.counter(span, poly_iap[i]);
 
                 while (sub_voice.trigger.next(&ctr)) |result| {
@@ -357,7 +356,7 @@ pub const MainModule = struct {
     pub const num_temps = blk: {
         comptime var n: usize = 0;
         inline for (@typeInfo(Voices).Struct.fields) |field| {
-            n = std.math.max(n, @field(field.field_type, "num_temps"));
+            n = @max(n, @field(field.type, "num_temps"));
         }
         break :blk n;
     };
@@ -374,9 +373,8 @@ pub const MainModule = struct {
             .voices = undefined,
         };
 
-        inline for (@typeInfo(Voices).Struct.fields) |field, track_index| {
-            @field(mod.voices, field.name) =
-                field.field_type.init(track_index);
+        inline for (@typeInfo(Voices).Struct.fields, 0..) |field, track_index| {
+            @field(mod.voices, field.name) = field.type.init(track_index);
         }
 
         return mod;
@@ -389,7 +387,7 @@ pub const MainModule = struct {
         temps: [num_temps][]f32,
     ) void {
         inline for (@typeInfo(Voices).Struct.fields) |field| {
-            const VoiceType = field.field_type;
+            const VoiceType = field.type;
             @field(self.voices, field.name).paint(
                 span,
                 outputs,
@@ -399,6 +397,7 @@ pub const MainModule = struct {
     }
 
     pub fn keyEvent(self: *MainModule, key: i32, down: bool, impulse_frame: usize) bool {
+        _ = impulse_frame;
         if (down and key == c.SDLK_SPACE) {
             inline for (@typeInfo(Voices).Struct.fields) |field| {
                 @field(self.voices, field.name).reset();

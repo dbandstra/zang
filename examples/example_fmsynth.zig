@@ -2,8 +2,8 @@ const std = @import("std");
 const zang = @import("zang");
 const mod = @import("modules");
 const note_frequencies = @import("zang-12tet");
-const common = @import("common.zig");
-const c = @import("common/c.zig");
+const common = @import("common");
+const c = common.c;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;
 pub const AUDIO_SAMPLE_RATE = 48000;
@@ -54,6 +54,9 @@ const Oscillator = struct {
         note_id_changed: bool,
         params: Params,
     ) void {
+        _ = temps;
+        _ = note_id_changed;
+
         const output = outputs[0][span.start..span.end];
 
         var t = self.t;
@@ -71,7 +74,7 @@ const Oscillator = struct {
             const s = std.math.sin(p);
             const sample = switch (params.waveform) {
                 0 => s,
-                1 => std.math.max(s, 0),
+                1 => @max(s, 0),
                 2 => std.math.fabs(s),
                 3 => if (std.math.sin(p * 2) >= 0) std.math.fabs(s) else 0,
             };
@@ -131,7 +134,7 @@ const Operator = struct {
         // translate discrete parameters to real values
         const freq_mul: f32 = switch (params.freq_mul) {
             0 => 0.5,
-            1...10 => |x| @intToFloat(f32, x),
+            1...10 => |x| @floatFromInt(x),
             11 => 10.0,
             12 => 12.0,
             13 => 12.0,
@@ -154,9 +157,9 @@ const Operator = struct {
 
         // no idea how these correspond to actual OPL, i just made them up.
         // i didn't mimic OPL's behavior of 0 meaning "never attack/decay/release"
-        const attack = 0.002 + 4.0 * std.math.pow(f32, 1 - @intToFloat(f32, params.attack) / 15.0, 3.0);
+        const attack = 0.002 + 4.0 * std.math.pow(f32, 1 - @as(f32, @floatFromInt(params.attack)) / 15.0, 3.0);
 
-        const decay = 0.002 + 4.0 * std.math.pow(f32, 1 - @intToFloat(f32, params.decay) / 15.0, 3.0);
+        const decay = 0.002 + 4.0 * std.math.pow(f32, 1 - @as(f32, @floatFromInt(params.decay)) / 15.0, 3.0);
         const sustain = blk: {
             var db: f32 = 0;
             if (params.sustain & 8 != 0) db -= 24.0;
@@ -165,7 +168,7 @@ const Operator = struct {
             if (params.sustain & 1 != 0) db -= 3.0;
             break :blk decibels(db);
         };
-        const release = 0.002 + 4.0 * std.math.pow(f32, 1 - @intToFloat(f32, params.release) / 15.0, 3.0);
+        const release = 0.002 + 4.0 * std.math.pow(f32, 1 - @as(f32, @floatFromInt(params.release)) / 15.0, 3.0);
 
         const tremolo: f32 = switch (params.tremolo) {
             0 => 0,
@@ -210,7 +213,7 @@ const Operator = struct {
         self.osc.paint(span, .{temps[0]}, .{}, note_id_changed, .{
             .sample_rate = params.sample_rate,
             .freq = temps[1],
-            .waveform = @truncate(u2, params.waveform),
+            .waveform = @truncate(params.waveform),
             .phase = params.phase,
             .feedback = feedback,
         });
@@ -415,7 +418,7 @@ pub const MainModule = struct {
             .vibrato_lfo = mod.SineOsc.init(),
             .tremolo_lfo = mod.SineOsc.init(),
         };
-        for (self.voices) |*voice| {
+        for (&self.voices) |*voice| {
             voice.* = .{
                 .module = Instrument.init(),
                 .trigger = zang.Trigger(NoteParams).init(),
@@ -451,7 +454,7 @@ pub const MainModule = struct {
 
         const poly_iap = self.dispatcher.dispatch(iap);
 
-        for (self.voices) |*voice, i| {
+        for (&self.voices, 0..) |*voice, i| {
             var ctr = voice.trigger.counter(span, poly_iap[i]);
             while (voice.trigger.next(&ctr)) |result| {
                 voice.module.paint(
@@ -494,7 +497,7 @@ pub const MainModule = struct {
     }
 
     pub fn keyEvent(self: *MainModule, key: i32, down: bool, impulse_frame: usize) bool {
-        for (common.key_bindings) |kb, i| {
+        for (common.key_bindings, 0..) |kb, i| {
             if (kb.key != key)
                 continue;
 

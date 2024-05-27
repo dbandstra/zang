@@ -1,5 +1,5 @@
 const std = @import("std");
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 
 pub const InterpolationFunction = enum {
     linear,
@@ -61,6 +61,8 @@ pub fn paint(
     note_id_changed: bool,
     params: Params,
 ) void {
+    _ = temps;
+
     if (note_id_changed) {
         self.current_song_note = 0;
         self.current_song_note_offset = 0;
@@ -76,8 +78,8 @@ pub fn paint(
     while (start < out.len) {
         const curve_span = getNextCurveSpan(curve_nodes, start, out.len);
 
-        const paint_start = @intCast(i32, curve_span.start);
-        const paint_end = @intCast(i32, curve_span.end);
+        const paint_start: i32 = @intCast(curve_span.start);
+        // const paint_end: i32 = @intCast(curve_span.end);
 
         if (curve_span.values) |values| {
             // the full range between nodes
@@ -90,12 +92,12 @@ pub fn paint(
             // std.debug.assert(curve_span.end <= fend);
 
             // 'x' values are 0-1
-            const start_x = @intToFloat(f32, paint_start - fstart) / @intToFloat(f32, fend - fstart);
+            const start_x = @as(f32, @floatFromInt(paint_start - fstart)) / @as(f32, @floatFromInt(fend - fstart));
 
             const start_value = values.start_node.value;
             const value_delta = values.end_node.value - values.start_node.value;
 
-            const x_step = 1.0 / @intToFloat(f32, fend - fstart);
+            const x_step = 1.0 / @as(f32, @floatFromInt(fend - fstart));
 
             var i: usize = curve_span.start;
 
@@ -133,7 +135,7 @@ fn getCurveSpanNodes(
 ) []CurveSpanNode {
     var count: usize = 0;
 
-    const buf_time = @intToFloat(f32, out_len) / sample_rate;
+    const buf_time = @as(f32, @floatFromInt(out_len)) / sample_rate;
     const end_t = self.t + buf_time;
 
     // add a note that was begun in a previous frame
@@ -157,7 +159,7 @@ fn getCurveSpanNodes(
             }
         }
         const f = (note_t - self.t) / buf_time; // 0 to 1
-        const rel_frame_index = @floatToInt(i32, f * @intToFloat(f32, out_len));
+        const rel_frame_index: i32 = @intFromFloat(f * @as(f32, @floatFromInt(out_len)));
         // if there's already a note at this frame (from the previous note
         // carry-over), this should overwrite that one
         if (count > 0 and self.curve_nodes[count - 1].frame == rel_frame_index) {
@@ -176,7 +178,7 @@ fn getCurveSpanNodes(
     }
 
     self.t += buf_time;
-    self.current_song_note_offset -= @intCast(i32, out_len);
+    self.current_song_note_offset -= @as(i32, @intCast(out_len));
 
     return self.curve_nodes[0..count];
 }
@@ -186,10 +188,10 @@ fn getCurveSpanNodes(
 fn getNextCurveSpan(curve_nodes: []const CurveSpanNode, dest_start_: usize, dest_end_: usize) CurveSpan {
     std.debug.assert(dest_start_ < dest_end_);
 
-    const dest_start = @intCast(i32, dest_start_);
-    const dest_end = @intCast(i32, dest_end_);
+    const dest_start: i32 = @intCast(dest_start_);
+    const dest_end: i32 = @intCast(dest_end_);
 
-    for (curve_nodes) |curve_node, i| {
+    for (curve_nodes, 0..) |curve_node, i| {
         const start_pos = curve_node.frame;
 
         if (start_pos >= dest_end) {
@@ -201,7 +203,7 @@ fn getNextCurveSpan(curve_nodes: []const CurveSpanNode, dest_start_: usize, dest
         // this span ends at the start of the next curve_node (if one exists),
         // or the end of the buffer, whichever comes first
         const end_pos = if (i < curve_nodes.len - 1)
-            std.math.min(dest_end, curve_nodes[i + 1].frame)
+            @min(dest_end, curve_nodes[i + 1].frame)
         else
             dest_end;
 
@@ -218,8 +220,8 @@ fn getNextCurveSpan(curve_nodes: []const CurveSpanNode, dest_start_: usize, dest
         if (note_start_clipped > dest_start) {
             // gap before the note begins
             return .{
-                .start = @intCast(usize, dest_start),
-                .end = @intCast(usize, note_start_clipped),
+                .start = @intCast(dest_start),
+                .end = @intCast(note_start_clipped),
                 .values = null,
             };
         }
@@ -231,8 +233,8 @@ fn getNextCurveSpan(curve_nodes: []const CurveSpanNode, dest_start_: usize, dest
             note_end;
 
         return .{
-            .start = @intCast(usize, note_start_clipped),
-            .end = @intCast(usize, note_end_clipped),
+            .start = @intCast(note_start_clipped),
+            .end = @intCast(note_end_clipped),
             .values = if (i < curve_nodes.len - 1)
                 CurveSpanValues{
                     .start_node = curve_node,
@@ -246,8 +248,8 @@ fn getNextCurveSpan(curve_nodes: []const CurveSpanNode, dest_start_: usize, dest
     std.debug.assert(dest_start < dest_end);
 
     return .{
-        .start = @intCast(usize, dest_start),
-        .end = @intCast(usize, dest_end),
+        .start = @intCast(dest_start),
+        .end = @intCast(dest_end),
         .values = null,
     };
 }
