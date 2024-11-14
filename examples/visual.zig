@@ -133,8 +133,8 @@ fn scrollBlit(screen: Screen, x: usize, y: usize, w: usize, h: usize, buffer: []
         const src_start = i * w;
         const src = buffer[src_start .. src_start + w];
 
-        std.mem.copy(u32, dest[w - drawindex ..], src[0..drawindex]);
-        std.mem.copy(u32, dest[0 .. w - drawindex], src[drawindex..]);
+        @memcpy(dest[w - drawindex ..], src[0..drawindex]);
+        @memcpy(dest[0 .. w - drawindex], src[drawindex..]);
     }
 }
 
@@ -176,7 +176,7 @@ fn makeVTable(comptime T: type) VTable {
     const S = struct {
         const vtable = VTable{
             .offset = blk: {
-                inline for (@typeInfo(T).Struct.fields) |field| {
+                for (@typeInfo(T).Struct.fields) |field| {
                     if (std.mem.eql(u8, field.name, "vtable")) {
                         break :blk @offsetOf(T, field.name);
                     }
@@ -218,15 +218,15 @@ pub const DrawSpectrum = struct {
     state: enum { up_to_date, needs_blit, needs_full_reblit },
 
     pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawSpectrum {
-        var self = try allocator.create(DrawSpectrum);
+        const self = try allocator.create(DrawSpectrum);
         errdefer allocator.destroy(self);
-        var old_y = try allocator.alloc(u32, width);
+        const old_y = try allocator.alloc(u32, width);
         errdefer allocator.free(old_y);
-        var fft_real = try allocator.alloc(f32, 1024);
+        const fft_real = try allocator.alloc(f32, 1024);
         errdefer allocator.free(fft_real);
-        var fft_imag = try allocator.alloc(f32, 1024);
+        const fft_imag = try allocator.alloc(f32, 1024);
         errdefer allocator.free(fft_imag);
-        var fft_out = try allocator.alloc(f32, 512);
+        const fft_out = try allocator.alloc(f32, 512);
         errdefer allocator.free(fft_out);
         self.* = .{
             .vtable = &_vtable,
@@ -260,13 +260,13 @@ pub const DrawSpectrum = struct {
         _ = oscil_freq;
         std.debug.assert(samples.len == 1024); // FIXME
 
-        std.mem.copy(f32, self.fft_real, samples);
+        @memcpy(self.fft_real, samples);
         @memset(self.fft_imag, 0.0);
         fft(1024, self.fft_real, self.fft_imag);
 
         var i: usize = 0;
         while (i < 512) : (i += 1) {
-            const v = std.math.fabs(self.fft_real[i]) * (1.0 / 1024.0);
+            const v = @abs(self.fft_real[i]) * (1.0 / 1024.0);
             const v2 = std.math.sqrt(v); // kludge for visibility
             self.fft_out[i] = v2;
         }
@@ -377,13 +377,13 @@ pub const DrawSpectrumFull = struct {
     drawindex: usize,
 
     pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawSpectrumFull {
-        var self = try allocator.create(DrawSpectrumFull);
+        const self = try allocator.create(DrawSpectrumFull);
         errdefer allocator.destroy(self);
-        var fft_real = try allocator.alloc(f32, 1024);
+        const fft_real = try allocator.alloc(f32, 1024);
         errdefer allocator.free(fft_real);
-        var fft_imag = try allocator.alloc(f32, 1024);
+        const fft_imag = try allocator.alloc(f32, 1024);
         errdefer allocator.free(fft_imag);
-        var buffer = try allocator.alloc(u32, width * height);
+        const buffer = try allocator.alloc(u32, width * height);
         errdefer allocator.free(buffer);
         self.* = .{
             .vtable = &_vtable,
@@ -420,7 +420,7 @@ pub const DrawSpectrumFull = struct {
 
         std.debug.assert(samples.len == 1024); // FIXME
 
-        std.mem.copy(f32, self.fft_real, samples);
+        @memcpy(self.fft_real, samples);
         @memset(self.fft_imag, 0.0);
         fft(1024, self.fft_real, self.fft_imag);
 
@@ -436,7 +436,7 @@ pub const DrawSpectrumFull = struct {
                 color = 0xFFFF0000;
             } else {
                 // sqrt is a kludge to make things more visible
-                const v = std.math.sqrt(std.math.fabs(fft_value) * (1.0 / 1024.0));
+                const v = std.math.sqrt(@abs(fft_value) * (1.0 / 1024.0));
                 color = hslToRgb(v, 1.0, 0.5);
             }
 
@@ -478,7 +478,7 @@ pub const DrawWaveform = struct {
     pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawWaveform {
         var self = try allocator.create(DrawWaveform);
         errdefer allocator.destroy(self);
-        var buffer = try allocator.alloc(u32, width * height);
+        const buffer = try allocator.alloc(u32, width * height);
         errdefer allocator.free(buffer);
         self.* = .{
             .vtable = &_vtable,
@@ -515,7 +515,7 @@ pub const DrawWaveform = struct {
         sample_max *= mul;
 
         const y_mid = self.height / 2;
-        var sx = self.drawindex;
+        const sx = self.drawindex;
         var sy: usize = 0;
 
         if (sample_min != sample_min or sample_max != sample_max) {
@@ -614,13 +614,13 @@ pub const DrawOscilloscope = struct {
     const waveform_color: u32 = 0xFFAAAAAA;
 
     pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawOscilloscope {
-        var self = try allocator.create(DrawOscilloscope);
+        const self = try allocator.create(DrawOscilloscope);
         errdefer allocator.destroy(self);
-        var samples = try allocator.alloc(f32, width);
+        const samples = try allocator.alloc(f32, width);
         errdefer allocator.free(samples);
-        var buffered_samples = try allocator.alloc(f32, width);
+        const buffered_samples = try allocator.alloc(f32, width);
         errdefer allocator.free(buffered_samples);
-        var painted_spans = try allocator.alloc(PaintedSpan, width);
+        const painted_spans = try allocator.alloc(PaintedSpan, width);
         errdefer allocator.free(painted_spans);
         self.* = .{
             .vtable = &_vtable,
@@ -676,7 +676,7 @@ pub const DrawOscilloscope = struct {
         // move down existing self.samples to make room for the new stuff.
         if (num_to_push < self.samples.len) {
             const diff = self.samples.len - num_to_push;
-            std.mem.copy(f32, self.samples[0..diff], self.samples[num_to_push..]);
+            @memcpy(self.samples[0..diff], self.samples[num_to_push..]);
         }
         // now add in buffered samples
         if (drain_buffer) {
@@ -687,12 +687,12 @@ pub const DrawOscilloscope = struct {
                 if (buf.len + n <= self.samples.len) {
                     // whole of buf fits in self.samples
                     const start = self.samples.len - n - buf.len;
-                    std.mem.copy(f32, self.samples[start .. start + buf.len], buf);
+                    @memcpy(self.samples[start .. start + buf.len], buf);
                 } else {
                     // only the latter part of buf will fit in self.samples
                     const num_to_copy = self.samples.len - n;
                     const b_start = buf.len - num_to_copy;
-                    std.mem.copy(f32, self.samples[0..num_to_copy], buf[b_start..]);
+                    @memcpy(self.samples[0..num_to_copy], buf[b_start..]);
                 }
             }
             self.num_buffered_samples = 0;
@@ -701,10 +701,10 @@ pub const DrawOscilloscope = struct {
         if (n <= self.samples.len) {
             // whole of new samples fits in self.samples
             const start = self.samples.len - n;
-            std.mem.copy(f32, self.samples[start..], samples[0..n]);
+            @memcpy(self.samples[start..], samples[0..n]);
         } else {
             // only the latter part of new samples will fit in self.samples
-            std.mem.copy(f32, self.samples, samples[n - self.samples.len .. n]);
+            @memcpy(self.samples, samples[n - self.samples.len .. n]);
         }
         // everything after `n`, we add to self.buffered_samples.
         // it's possible there are still some old buffered_samples there.
@@ -713,18 +713,18 @@ pub const DrawOscilloscope = struct {
             const nbs = self.num_buffered_samples;
             if (nbs + to_buffer.len <= self.buffered_samples.len) {
                 // there's empty space to fit all of it, just append it.
-                std.mem.copy(f32, self.buffered_samples[nbs .. nbs + to_buffer.len], to_buffer);
+                @memcpy(self.buffered_samples[nbs .. nbs + to_buffer.len], to_buffer);
                 self.num_buffered_samples += to_buffer.len;
             } else if (to_buffer.len >= self.buffered_samples.len) {
                 // new stuff will take up the entire buffer
                 const start = to_buffer.len - self.buffered_samples.len;
-                std.mem.copy(f32, self.buffered_samples, to_buffer[start..]);
+                @memcpy(self.buffered_samples, to_buffer[start..]);
                 self.num_buffered_samples = self.buffered_samples.len;
             } else {
                 // new stuff fits but has to push back old stuff.
                 const to_keep = self.buffered_samples.len - to_buffer.len;
-                std.mem.copy(f32, self.buffered_samples[0..to_keep], self.buffered_samples[nbs - to_keep .. 0]);
-                std.mem.copy(f32, self.buffered_samples[to_keep..], to_buffer);
+                @memcpy(self.buffered_samples[0..to_keep], self.buffered_samples[nbs - to_keep .. 0]);
+                @memcpy(self.buffered_samples[to_keep..], to_buffer);
                 self.num_buffered_samples = self.buffered_samples.len;
             }
         }
@@ -805,7 +805,7 @@ pub const DrawStaticString = struct {
     bgcolor: u32,
 
     pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize, string: []const u8, bgcolor: u32) !*DrawStaticString {
-        var self = try allocator.create(DrawStaticString);
+        const self = try allocator.create(DrawStaticString);
         errdefer allocator.destroy(self);
         self.* = .{
             .vtable = &_vtable,
@@ -847,7 +847,7 @@ pub const DrawParameters = struct {
     param_dirty_counter: ?u32,
 
     pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize, bgcolor: u32) !*DrawParameters {
-        var self = try allocator.create(DrawParameters);
+        const self = try allocator.create(DrawParameters);
         errdefer allocator.destroy(self);
         self.* = .{
             .vtable = &_vtable,
@@ -909,7 +909,7 @@ pub const DrawRecorderState = struct {
     recorder_state: std.meta.Tag(Recorder.State),
 
     pub fn new(allocator: std.mem.Allocator, x: usize, y: usize, width: usize, height: usize) !*DrawRecorderState {
-        var self = try allocator.create(DrawRecorderState);
+        const self = try allocator.create(DrawRecorderState);
         errdefer allocator.destroy(self);
         self.* = .{
             .vtable = &_vtable,

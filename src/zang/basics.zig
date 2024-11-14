@@ -18,7 +18,7 @@ pub fn set(span: Span, dest: []f32, a: f32) void {
 }
 
 pub fn copy(span: Span, dest: []f32, src: []const f32) void {
-    std.mem.copy(f32, dest[span.start..span.end], src[span.start..span.end]);
+    @memcpy(dest[span.start..span.end], src[span.start..span.end]);
 }
 
 pub fn add(span: Span, dest: []f32, a: []const f32, b: []const f32) void {

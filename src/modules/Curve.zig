@@ -104,7 +104,7 @@ pub fn paint(
             switch (params.function) {
                 .linear => {
                     var y = start_value + start_x * value_delta;
-                    var y_step = x_step * value_delta;
+                    const y_step = x_step * value_delta;
 
                     while (i < curve_span.end) : (i += 1) {
                         out[i] += y;

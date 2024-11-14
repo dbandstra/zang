@@ -70,14 +70,14 @@ pub fn Delay(comptime delay_samples: usize) type {
             const delay_slice = self.delay_buffer[index .. index + len];
 
             // paint from input into delay buffer
-            std.mem.copy(f32, delay_slice, input[0..len]);
+            @memcpy(delay_slice, input[0..len]);
 
             if (len < input.len) {
                 // wrap around to the start of the delay buffer, and
                 // perform the same operations as above with the remaining
                 // part of the input/output
                 const b_len = input.len - len;
-                std.mem.copy(f32, self.delay_buffer[0..b_len], input[len..]);
+                @memcpy(self.delay_buffer[0..b_len], input[len..]);
                 self.delay_buffer_index = b_len;
             } else {
                 // wrapping not needed

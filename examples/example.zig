@@ -87,32 +87,32 @@ const ListenerEvent = enum {
 };
 
 const Listener = struct {
-    socket: std.os.fd_t,
+    socket: std.posix.fd_t,
 
     fn init(port: u16) !Listener {
         // open UDP socket on port 8888
-        const socket = try std.os.socket(std.os.AF.INET, std.os.SOCK.DGRAM, std.os.IPPROTO.UDP);
-        _ = try std.os.fcntl(socket, std.os.F.SETFL, std.os.O.NONBLOCK);
-        var addr: std.os.sockaddr.in = .{
+        const socket = try std.posix.socket(std.posix.AF.INET, std.posix.SOCK.DGRAM, std.posix.IPPROTO.UDP);
+        _ = try std.posix.fcntl(socket, std.posix.F.SETFL, std.posix.SOCK.NONBLOCK);
+        var addr: std.posix.sockaddr.in = .{
             .port = std.mem.nativeToBig(u16, port),
             .addr = 0, // INADDR_ANY
         };
-        try std.os.bind(socket, @ptrCast(&addr), @sizeOf(@TypeOf(addr)));
+        try std.posix.bind(socket, @ptrCast(&addr), @sizeOf(@TypeOf(addr)));
         std.debug.print("listening on port {}\n", .{port});
         return Listener{ .socket = socket };
     }
 
     fn deinit(self: *Listener) void {
-        std.os.close(self.socket);
+        std.posix.close(self.socket);
     }
 
     fn checkForEvent(self: *Listener) !?ListenerEvent {
         var buf: [100]u8 = undefined;
 
-        var from_addr: std.os.sockaddr.in = undefined;
+        var from_addr: std.posix.sockaddr.in = undefined;
         var from_addr_len: u32 = @sizeOf(@TypeOf(from_addr));
 
-        const num_bytes = std.os.recvfrom(self.socket, &buf, buf.len, @ptrCast(&from_addr), &from_addr_len) catch |err| {
+        const num_bytes = std.posix.recvfrom(self.socket, &buf, buf.len, @ptrCast(&from_addr), &from_addr_len) catch |err| {
             if (err == error.WouldBlock) {
                 return null;
             } else {

@@ -1,6 +1,5 @@
 const std = @import("std");
 const zang = @import("zang");
-const f = @import("zang-12tet");
 const common = @import("common");
 const c = common.c;
 
@@ -354,8 +353,8 @@ fn Voice(comptime T: type) type {
 pub const MainModule = struct {
     pub const num_outputs = 1;
     pub const num_temps = blk: {
-        comptime var n: usize = 0;
-        inline for (@typeInfo(Voices).Struct.fields) |field| {
+        var n: usize = 0;
+        for (@typeInfo(Voices).Struct.fields) |field| {
             n = @max(n, @field(field.type, "num_temps"));
         }
         break :blk n;

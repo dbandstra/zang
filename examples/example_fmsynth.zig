@@ -75,8 +75,8 @@ const Oscillator = struct {
             const sample = switch (params.waveform) {
                 0 => s,
                 1 => @max(s, 0),
-                2 => std.math.fabs(s),
-                3 => if (std.math.sin(p * 2) >= 0) std.math.fabs(s) else 0,
+                2 => @abs(s),
+                3 => if (std.math.sin(p * 2) >= 0) @abs(s) else 0,
             };
 
             output[i] += sample;

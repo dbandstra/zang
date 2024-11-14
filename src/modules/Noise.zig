@@ -23,7 +23,7 @@ r: std.rand.DefaultPrng,
 b: [7]f32,
 
 pub fn init() @This() {
-    const seed: u64 = @atomicRmw(u32, &next_seed, .Add, 1, .SeqCst);
+    const seed: u64 = @atomicRmw(u32, &next_seed, .Add, 1, .seq_cst);
 
     return .{
         .r = std.rand.DefaultPrng.init(seed),

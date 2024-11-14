@@ -1,5 +1,5 @@
 const note_frequencies = @import("zang-12tet");
-pub const c = @import("common/c.zig");
+pub const c = @import("common/c.zig").c;
 
 pub const AudioOut = union(enum) {
     mono: usize,
