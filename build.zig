@@ -17,7 +17,7 @@ const examples_to_run = [_][]const u8{
     "delay",
     "mouse",
     "two",
-    // "script",
+    "script",
     "vibrato",
     "fmsynth",
 };
@@ -44,7 +44,7 @@ pub fn build(b: *std.Build) void {
 
     inline for (examples_to_run) |name| {
         const exe = example(b, name, optimize, target);
-        // b.installArtifact(exe);
+        b.installArtifact(exe);
         const run_cmd = b.addRunArtifact(exe);
         const run_step = b.step(name, "Run example '" ++ name ++ "'");
         run_step.dependOn(&run_cmd.step);
@@ -52,16 +52,15 @@ pub fn build(b: *std.Build) void {
 
     {
         const exe = writeWav(b, optimize, target);
-        // b.installArtifact(exe);
+        b.installArtifact(exe);
         const run_cmd = b.addRunArtifact(exe);
         const run_step = b.step("write_wav", "Run example 'write_wav'");
         run_step.dependOn(&run_cmd.step);
     }
 
-    // inline for (examples_to_build) |name| {
-    //     b.step(name, "Build example '" ++ name ++ "'").dependOn(&example(b, name).step);
-    // }
+    // TODO how to build only zangc
     // b.step("zangc", "Build zangscript compiler").dependOn(&zangc(b).step);
+    b.installArtifact(zangc(b, optimize, target));
 }
 
 fn example(b: *std.Build, comptime name: []const u8, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget) *std.Build.Step.Compile {
@@ -107,9 +106,6 @@ fn example(b: *std.Build, comptime name: []const u8, optimize: std.builtin.Optim
     exe.root_module.addImport("zang", zang_module);
     exe.root_module.addImport("common", common_module);
     exe.root_module.addImport("example", example_module);
-    // exe.addAnonymousModule("zangscript", .{
-    //     .source_file = .{ .path = "src/zangscript.zig" },
-    // });
 
     // Apparently I don't need these. Maybe because I already linked SDL2 into
     // common_module.
@@ -144,10 +140,29 @@ fn writeWav(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build
     return exe;
 }
 
-// fn zangc(b: *std.Build) *std.build.CompileStep {
-//     var exe = b.addExecutable("zangc", "tools/zangc.zig");
-//     exe.setBuildMode(b.standardReleaseOptions());
-//     exe.setOutputDir("zig-cache");
-//     exe.addAnonymousModule("zangscript", "src/zangscript.zig");
-//     return exe;
-// }
+fn zangc(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget) *std.Build.Step.Compile {
+    const zang_module = b.createModule(.{
+        .root_source_file = b.path("src/zang.zig"),
+    });
+    const modules_module = b.createModule(.{
+        .root_source_file = b.path("src/modules.zig"),
+        .imports = &.{
+            .{ .name = "zang", .module = zang_module },
+        },
+    });
+    const zangscript_module = b.createModule(.{
+        .root_source_file = b.path("src/zangscript.zig"),
+        .imports = &.{
+            .{ .name = "zang", .module = zang_module },
+            .{ .name = "modules", .module = modules_module },
+        },
+    });
+    const exe = b.addExecutable(.{
+        .name = "zangc",
+        .root_source_file = b.path("tools/zangc.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("zangscript", zangscript_module);
+    return exe;
+}

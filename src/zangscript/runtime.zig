@@ -1,5 +1,5 @@
 const std = @import("std");
-const zang = @import("../zang.zig");
+const zang = @import("zang");
 const Source = @import("tokenize.zig").Source;
 const BuiltinPackage = @import("builtins.zig").BuiltinPackage;
 const BuiltinEnumValue = @import("builtins.zig").BuiltinEnumValue;
@@ -60,9 +60,9 @@ pub const Value = union(enum) {
                 .Enum => |enum_info| {
                     switch (value) {
                         .one_of => |v| {
-                            inline for (enum_info.fields) |enum_field, i| {
+                            inline for (enum_info.fields, 0..) |enum_field, i| {
                                 if (std.mem.eql(u8, v.label, enum_field.name)) {
-                                    return @intToEnum(P, i);
+                                    return @enumFromInt(i);
                                 }
                             }
                             unreachable;
@@ -73,7 +73,7 @@ pub const Value = union(enum) {
                 .Union => |union_info| {
                     switch (value) {
                         .one_of => |v| {
-                            inline for (union_info.fields) |union_field, i| {
+                            inline for (union_info.fields) |union_field| {
                                 if (std.mem.eql(u8, v.label, union_field.name)) {
                                     switch (union_field.field_type) {
                                         void => return @unionInit(P, union_field.name, {}),
@@ -103,7 +103,7 @@ pub const Value = union(enum) {
             .curve => if (@TypeOf(zig_value) == []const zang.CurveNode) return Value{ .curve = zig_value },
             .one_of => |builtin_enum| {
                 switch (@typeInfo(@TypeOf(zig_value))) {
-                    .Enum => |enum_info| {
+                    .Enum => {
                         // just check if the current value of `zig_value` fits structurally
                         const label = @tagName(zig_value);
                         for (builtin_enum.values) |bev| {
@@ -115,8 +115,8 @@ pub const Value = union(enum) {
                     .Union => |union_info| {
                         // just check if the current value of `zig_value` fits structurally
                         for (builtin_enum.values) |bev| {
-                            inline for (union_info.fields) |field, i| {
-                                if (@enumToInt(zig_value) == i and std.mem.eql(u8, bev.label, field.name)) {
+                            inline for (union_info.fields, 0..) |field, i| {
+                                if (@intFromEnum(zig_value) == i and std.mem.eql(u8, bev.label, field.name)) {
                                     return payloadFromZig(bev, @field(zig_value, field.name));
                                 }
                             }
@@ -166,7 +166,7 @@ pub const ModuleBase = struct {
     pub fn makeParams(self: *const ModuleBase, comptime T: type, params: T) ?[@typeInfo(T).Struct.fields.len]Value {
         const struct_fields = @typeInfo(T).Struct.fields;
         var values: [struct_fields.len]Value = undefined;
-        for (self.params) |param, i| {
+        for (self.params, 0..) |param, i| {
             var found = false;
             inline for (struct_fields) |field| {
                 if (std.mem.eql(u8, field.name, param.name)) {
@@ -196,11 +196,12 @@ pub fn initModule(
         .builtin => {
             inline for (builtin_packages) |pkg| {
                 const package = if (comptime std.mem.eql(u8, pkg.zig_import_path, "zang"))
-                    @import("../zang.zig")
+                    @import("zang")
                 else if (comptime std.mem.eql(u8, pkg.zig_import_path, "modules"))
-                    @import("../modules.zig")
+                    @import("modules")
                 else
-                    @import("../../" ++ pkg.zig_import_path);
+                    //@import("../../" ++ pkg.zig_import_path);
+                    @compileError("need hardcoded import for " ++ pkg.zig_import_path);
 
                 inline for (pkg.builtins) |builtin| {
                     const builtin_name = script.modules[module_index].builtin_name.?;
@@ -212,7 +213,7 @@ pub fn initModule(
             }
             unreachable;
         },
-        .custom => |x| {
+        .custom => {
             return ScriptModule.init(script, module_index, builtin_packages, allocator);
         },
     }
@@ -240,7 +241,7 @@ fn BuiltinModule(comptime T: type) type {
         }
 
         fn deinitFn(base: *ModuleBase) void {
-            var self = @fieldParentPtr(@This(), "base", base);
+            var self: *@This() = @fieldParentPtr("base", base);
 
             self.allocator.destroy(self);
         }
@@ -253,7 +254,7 @@ fn BuiltinModule(comptime T: type) type {
             note_id_changed: bool,
             param_values: []const Value,
         ) void {
-            var self = @fieldParentPtr(@This(), "base", base);
+            var self: *@This() = @fieldParentPtr("base", base);
 
             const outputs = outputs_slice[0..T.num_outputs].*;
             const temps = temps_slice[0..T.num_temps].*;
@@ -268,7 +269,7 @@ fn BuiltinModule(comptime T: type) type {
         }
 
         fn getParamIndex(params: []const ModuleParam, name: []const u8) usize {
-            for (params) |param, i| {
+            for (params, 0..) |param, i| {
                 if (std.mem.eql(u8, name, param.name)) {
                     return i;
                 }
@@ -329,9 +330,9 @@ const ScriptModule = struct {
         errdefer allocator.free(self.curves);
         {
             var index: usize = 0;
-            for (script.curves) |curve, i| {
+            for (script.curves, 0..) |curve, i| {
                 self.curves[i].start = index;
-                for (curve.points) |point, j| {
+                for (curve.points) |point| {
                     self.curve_points[index] = .{
                         .t = point.t.value,
                         .value = point.value.value,
@@ -350,14 +351,14 @@ const ScriptModule = struct {
             module_instance.deinit();
         };
 
-        for (inner.fields) |field, i| {
+        for (inner.fields, 0..) |field, i| {
             self.module_instances[i] = try initModule(script, field.module_index, builtin_packages, allocator);
             num_initialized_fields += 1;
         }
 
         self.delay_instances = try allocator.alloc(zang.Delay(11025), inner.delays.len);
         errdefer allocator.free(self.delay_instances);
-        for (inner.delays) |delay_decl, i| {
+        for (inner.delays, 0..) |_, i| {
             // ignoring delay_decl.num_samples because we need a comptime value
             self.delay_instances[i] = zang.Delay(11025).init();
         }
@@ -386,7 +387,7 @@ const ScriptModule = struct {
     }
 
     fn deinitFn(base: *ModuleBase) void {
-        var self = @fieldParentPtr(ScriptModule, "base", base);
+        var self: *ScriptModule = @fieldParentPtr("base", base);
 
         self.allocator.free(self.callee_params);
         self.allocator.free(self.callee_temps);
@@ -418,7 +419,7 @@ const ScriptModule = struct {
         note_id_changed: bool,
         params: []const Value,
     ) void {
-        var self = @fieldParentPtr(ScriptModule, "base", base);
+        var self: *ScriptModule = @fieldParentPtr("base", base);
 
         std.debug.assert(outputs.len == self.script.module_results[self.module_index].num_outputs);
         std.debug.assert(temps.len == self.script.module_results[self.module_index].num_temps);
@@ -467,7 +468,8 @@ const ScriptModule = struct {
     }
 
     fn paintCobToBuffer(self: *const ScriptModule, p: PaintArgs, span: zang.Span, x: InstrCobToBuffer) void {
-        var out = getOut(p, x.out);
+        _=self;
+        const out = getOut(p, x.out);
         switch (p.params[x.in_self_param]) {
             .cob => |cob| switch (cob) {
                 .constant => |v| zang.set(span, out, v),
@@ -478,16 +480,16 @@ const ScriptModule = struct {
     }
 
     fn paintCall(self: *const ScriptModule, p: PaintArgs, span: zang.Span, x: InstrCall) void {
-        var out = getOut(p, x.out);
+        const out = getOut(p, x.out);
 
         const callee_module_index = p.inner.fields[x.field_index].module_index;
         const callee_base = self.module_instances[x.field_index];
 
-        for (x.temps) |n, i| {
+        for (x.temps, 0..) |n, i| {
             self.callee_temps[i] = p.temps[n];
         }
 
-        for (x.args) |arg, i| {
+        for (x.args, 0..) |arg, i| {
             const param_type = self.script.modules[callee_module_index].params[i].param_type;
             self.callee_params[i] = self.getResultValue(p, param_type, arg);
         }
@@ -504,10 +506,15 @@ const ScriptModule = struct {
     }
 
     fn paintTrackCall(self: *const ScriptModule, p: PaintArgs, span: zang.Span, x: InstrTrackCall) void {
+        _=self;
+        _=p;
+        _=span;
+        _=x;
         unreachable; // TODO
     }
 
     fn paintArithFloat(self: *const ScriptModule, p: PaintArgs, span: zang.Span, x: InstrArithFloat) void {
+        _=span;
         const a = self.getResultAsFloat(p, x.a);
         self.temp_floats[x.out.temp_float_index] = switch (x.op) {
             .abs => std.math.fabs(a),
@@ -542,6 +549,7 @@ const ScriptModule = struct {
     }
 
     fn paintArithFloatFloat(self: *const ScriptModule, p: PaintArgs, span: zang.Span, x: InstrArithFloatFloat) void {
+        _=span;
         const a = self.getResultAsFloat(p, x.a);
         const b = self.getResultAsFloat(p, x.b);
         self.temp_floats[x.out.temp_float_index] = switch (x.op) {
@@ -695,7 +703,7 @@ const ScriptModule = struct {
 
     fn paintDelay(self: *const ScriptModule, p: PaintArgs, span: zang.Span, x: InstrDelay) void {
         // FIXME - what is `out` here? it's not even used?
-        var out = getOut(p, x.out);
+        const out = getOut(p, x.out);
         zang.zero(span, out);
         var start = span.start;
         const end = span.end;
@@ -726,7 +734,7 @@ const ScriptModule = struct {
             .constant => return .{ .constant = self.getResultAsFloat(p, result) },
             .constant_or_buffer => return .{ .cob = self.getResultAsCob(p, result) },
             .curve => return .{ .curve = self.getResultAsCurve(p, result) },
-            .one_of => |builtin_enum| {
+            .one_of => {
                 return switch (result) {
                     .literal_enum_value => |literal| {
                         const payload = if (literal.payload) |result_payload|
@@ -739,7 +747,7 @@ const ScriptModule = struct {
                         .one_of => |v| return .{ .one_of = v },
                         .constant, .buffer, .cob, .boolean, .curve => unreachable,
                     },
-                    .track_param => |x| unreachable, // TODO
+                    .track_param => unreachable, // TODO
                     .nothing, .temp_float, .temp_buffer, .literal_boolean, .literal_number, .literal_curve, .literal_track, .literal_module => unreachable,
                 };
             },
@@ -747,13 +755,14 @@ const ScriptModule = struct {
     }
 
     fn getResultAsBuffer(self: *const ScriptModule, p: PaintArgs, result: ExpressionResult) []const f32 {
+        _=self;
         return switch (result) {
             .temp_buffer => |temp_ref| p.temps[temp_ref.index],
             .self_param => |param_index| switch (p.params[param_index]) {
                 .buffer => |v| v,
                 .constant, .cob, .boolean, .curve, .one_of => unreachable,
             },
-            .track_param => |x| unreachable, // TODO
+            .track_param => unreachable, // TODO
             .nothing, .temp_float, .literal_boolean, .literal_number, .literal_enum_value, .literal_curve, .literal_track, .literal_module => unreachable,
         };
     }
@@ -766,7 +775,7 @@ const ScriptModule = struct {
                 .constant => |v| v,
                 .buffer, .cob, .boolean, .curve, .one_of => unreachable,
             },
-            .track_param => |x| unreachable, // TODO
+            .track_param => unreachable, // TODO
             .nothing, .temp_buffer, .literal_boolean, .literal_enum_value, .literal_curve, .literal_track, .literal_module => unreachable,
         };
     }
@@ -782,19 +791,20 @@ const ScriptModule = struct {
                 .cob => |v| v,
                 .boolean, .curve, .one_of => unreachable,
             },
-            .track_param => |x| unreachable, // TODO
+            .track_param => unreachable, // TODO
             .nothing, .literal_boolean, .literal_enum_value, .literal_curve, .literal_track, .literal_module => unreachable,
         };
     }
 
     fn getResultAsBool(self: *const ScriptModule, p: PaintArgs, result: ExpressionResult) bool {
+        _=self;
         return switch (result) {
             .literal_boolean => |v| v,
             .self_param => |param_index| switch (p.params[param_index]) {
                 .boolean => |v| v,
                 .constant, .buffer, .cob, .curve, .one_of => unreachable,
             },
-            .track_param => |x| unreachable, // TODO
+            .track_param => unreachable, // TODO
             .nothing, .temp_buffer, .temp_float, .literal_number, .literal_enum_value, .literal_curve, .literal_track, .literal_module => unreachable,
         };
     }
@@ -809,7 +819,7 @@ const ScriptModule = struct {
                 .curve => |v| v,
                 .boolean, .constant, .buffer, .cob, .one_of => unreachable,
             },
-            .track_param => |x| unreachable, // TODO
+            .track_param => unreachable, // TODO
             .nothing, .temp_buffer, .temp_float, .literal_boolean, .literal_number, .literal_enum_value, .literal_track, .literal_module => unreachable,
         };
     }

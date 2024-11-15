@@ -1,6 +1,6 @@
 const std = @import("std");
-const zang = @import("../zang.zig");
-const mod = @import("../modules.zig");
+const zang = @import("zang");
+const mod = @import("modules");
 const ModuleParam = @import("parse.zig").ModuleParam;
 const ParamType = @import("parse.zig").ParamType;
 
@@ -25,68 +25,67 @@ pub const BuiltinEnumValue = struct {
 fn getBuiltinEnumFromEnumInfo(
     name: []const u8,
     zig_name: []const u8,
-    comptime enum_info: std.builtin.TypeInfo.Enum,
+    comptime enum_info: std.builtin.Type.Enum,
 ) BuiltinEnum {
     comptime var values: [enum_info.fields.len]BuiltinEnumValue = undefined;
-    inline for (enum_info.fields) |field, i| {
+    inline for (enum_info.fields, 0..) |field, i| {
         values[i].label = field.name;
         values[i].payload_type = .none;
     }
+    const values2 = values; // https://ziggit.dev/t/comptime-mutable-memory-changes/3702
     return .{
         .name = name,
         .zig_name = zig_name,
-        .values = &values,
+        .values = &values2,
     };
 }
 
 fn getBuiltinEnumFromUnionInfo(
     name: []const u8,
     zig_name: []const u8,
-    comptime union_info: std.builtin.TypeInfo.Union,
+    comptime union_info: std.builtin.Type.Union,
 ) BuiltinEnum {
     comptime var values: [union_info.fields.len]BuiltinEnumValue = undefined;
-    inline for (union_info.fields) |field, i| {
+    inline for (union_info.fields, 0..) |field, i| {
         values[i].label = field.name;
-        values[i].payload_type = switch (field.field_type) {
+        values[i].payload_type = switch (field.type) {
             void => .none,
             f32 => .f32,
-            else => @compileError("getBuiltinEnumFromUnionInfo: unsupported field_type: " ++ @typeName(field.field_type)),
+            else => @compileError("getBuiltinEnumFromUnionInfo: unsupported field_type: " ++ @typeName(field.type)),
         };
     }
+    const values2 = values; // https://ziggit.dev/t/comptime-mutable-memory-changes/3702
     return .{
         .name = name,
         .zig_name = zig_name,
-        .values = &values,
+        .values = &values2,
     };
 }
 
 fn getBuiltinEnum(comptime T: type) BuiltinEnum {
-    var name: []const u8 = undefined;
-    var zig_name: []const u8 = undefined;
-
-    switch (T) {
-        zang.PaintCurve => {
-            name = "PaintCurve";
-            zig_name = "zang.PaintCurve";
+    const name: []const u8, const zig_name: []const u8 = switch (T) {
+        zang.PaintCurve => .{
+            "PaintCurve",
+            "zang.PaintCurve",
         },
-        mod.Curve.InterpolationFunction => {
-            name = "InterpolationFunction";
-            zig_name = "mod.Curve.InterpolationFunction";
+        mod.Curve.InterpolationFunction => .{
+            "InterpolationFunction",
+            "mod.Curve.InterpolationFunction",
         },
-        mod.Distortion.Type => {
-            name = "DistortionType";
-            zig_name = "mod.Distortion.Type";
+        mod.Distortion.Type => .{
+            "DistortionType",
+            "mod.Distortion.Type",
         },
-        mod.Filter.Type => {
-            name = "FilterType";
-            zig_name = "mod.Filter.Type";
+        mod.Filter.Type => .{
+            "FilterType",
+            "mod.Filter.Type",
         },
-        mod.Noise.Color => {
-            name = "NoiseColor";
-            zig_name = "mod.Noise.Color";
+        mod.Noise.Color => .{
+            "NoiseColor",
+            "mod.Noise.Color",
         },
         else => @compileError("unsupported enum: " ++ @typeName(T)),
-    }
+    };
 
     switch (@typeInfo(T)) {
         .Enum => |enum_info| return getBuiltinEnumFromEnumInfo(name, zig_name, enum_info),
@@ -114,18 +113,30 @@ fn getBuiltinParamType(comptime T: type) ParamType {
     };
 }
 
+fn getTypeName(comptime T: type) []const u8 {
+    // turn (for example) "modules.SineOsc" into "SineOsc"
+    const full_name = @typeName(T);
+    var result: []const u8 = full_name;
+    for (result, 0..) |c, i| {
+        if (c == '.')
+            result = full_name[i+1..];
+    }
+    return result;
+}
+
 pub fn getBuiltinModule(comptime T: type) BuiltinModule {
     const struct_fields = @typeInfo(T.Params).Struct.fields;
     comptime var params: [struct_fields.len]ModuleParam = undefined;
-    inline for (struct_fields) |field, i| {
+    inline for (struct_fields, 0..) |field, i| {
         params[i] = .{
             .name = field.name,
-            .param_type = getBuiltinParamType(field.field_type),
+            .param_type = getBuiltinParamType(field.type),
         };
     }
+    const params2 = params; // https://ziggit.dev/t/comptime-mutable-memory-changes/3702
     return .{
-        .name = @typeName(T),
-        .params = &params,
+        .name = getTypeName(T),
+        .params = &params2,
         .num_temps = T.num_temps,
         .num_outputs = T.num_outputs,
     };

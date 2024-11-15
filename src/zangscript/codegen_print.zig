@@ -73,7 +73,7 @@ fn State(comptime Writer: type) type {
             }
         }
 
-        fn printInstruction(self: *@This(), instr: Instruction, indentation: usize) std.os.WriteError!void {
+        fn printInstruction(self: *@This(), instr: Instruction, indentation: usize) std.posix.WriteError!void {
             try self.indent(indentation);
             switch (instr) {
                 .copy_buffer => |x| {
@@ -110,12 +110,12 @@ fn State(comptime Writer: type) type {
                     try self.print("{buffer_dest} = CALL #{usize}(module{usize})\n", .{ call.out, call.field_index, field_module_index });
                     try self.indent(indentation + 1);
                     try self.print("temps: [", .{});
-                    for (call.temps) |temp, i| {
+                    for (call.temps, 0..) |temp, i| {
                         if (i > 0) try self.print(", ", .{});
                         try self.print("temp{usize}", .{temp});
                     }
                     try self.print("]\n", .{});
-                    for (call.args) |arg, i| {
+                    for (call.args, 0..) |arg, i| {
                         try self.indent(indentation + 1);
                         try self.print("{str} = {expression_result}\n", .{ callee_module.params[i].name, arg });
                     }
@@ -149,8 +149,6 @@ pub fn printBytecode(out: anytype, cs: *const CodegenState, cms: *const CodegenM
         .cms = cms,
         .helper = PrintHelper(Writer).init(out),
     };
-
-    const self_module = cs.modules[cms.module_index];
 
     try self.print("module {usize}\n", .{cms.module_index});
     try self.print("    num_temp_buffers: {usize}\n", .{cms.temp_buffers.finalCount()});

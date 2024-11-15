@@ -157,9 +157,9 @@ pub const Tokenizer = struct {
         const token = try self.next();
         if (token.tt == tt) return;
         const desc = if (comptime std.mem.startsWith(u8, @tagName(tt), "sym_"))
-            "`" ++ getSymbolString(tt) ++ "`"
+            "`" ++ comptime getSymbolString(tt) ++ "`"
         else if (comptime std.mem.startsWith(u8, @tagName(tt), "kw_"))
-            "`" ++ getKeywordString(tt) ++ "`"
+            "`" ++ comptime getKeywordString(tt) ++ "`"
         else
             unreachable;
         return self.failExpected(desc, token);

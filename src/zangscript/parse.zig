@@ -163,7 +163,7 @@ pub const Statement = union(enum) {
 };
 
 const ParseState = struct {
-    arena_allocator: *std.mem.Allocator,
+    arena_allocator: std.mem.Allocator,
     tokenizer: Tokenizer,
     globals: std.ArrayList(Global),
     enums: std.ArrayList(BuiltinEnum),
@@ -229,7 +229,7 @@ fn defineCurve(ps: *ParseState) !usize {
     }
     const curve_index = ps.curves.items.len;
     try ps.curves.append(.{
-        .points = points.toOwnedSlice(),
+        .points = try points.toOwnedSlice(),
     });
     return curve_index;
 }
@@ -319,8 +319,8 @@ fn defineTrack(ps: *ParseState) !usize {
     }
     const track_index = ps.tracks.items.len;
     try ps.tracks.append(.{
-        .params = params.toOwnedSlice(),
-        .notes = notes.toOwnedSlice(),
+        .params = try params.toOwnedSlice(),
+        .notes = try notes.toOwnedSlice(),
     });
     return track_index;
 }
@@ -333,7 +333,7 @@ fn defineModule(ps: *ParseState) !usize {
 
     // parse paint block
     var ps_mod: ParseModuleState = .{
-        .params = params.toOwnedSlice(),
+        .params = try params.toOwnedSlice(),
         .locals = std.ArrayList(Local).init(ps.arena_allocator),
     };
 
@@ -350,7 +350,7 @@ fn defineModule(ps: *ParseState) !usize {
     };
     module.info = .{
         .scope = top_scope,
-        .locals = ps_mod.locals.toOwnedSlice(),
+        .locals = try ps_mod.locals.toOwnedSlice(),
     };
     try ps.modules.append(module);
     return module_index;
@@ -386,7 +386,7 @@ fn parseCallArgs(ps: *ParseState, pc: ParseContext) ![]const CallArg {
             token = try ps.tokenizer.next();
         } else {
             switch (pc) {
-                .module => |pcm| {
+                .module => {
                     // shorthand param passing: `val` expands to `val=val`
                     const subexpr = try createExprWithSourceRange(ps, token.source_range, resolveName(ps, pc, token));
                     try args.append(.{
@@ -400,7 +400,7 @@ fn parseCallArgs(ps: *ParseState, pc: ParseContext) ![]const CallArg {
             }
         }
     }
-    return args.toOwnedSlice();
+    return try args.toOwnedSlice();
 }
 
 fn parseTrackCall(ps: *ParseState, pcm: ParseContextModule) ParseError!TrackCall {
@@ -530,7 +530,7 @@ fn expectExpression2(ps: *ParseState, pc: ParseContext, priority: usize) ParseEr
     while (true) {
         const token = try ps.tokenizer.peek();
         for (binary_operators) |bo| {
-            const T = @TagType(TokenType);
+            const T = std.meta.Tag(TokenType);
             if (@as(T, token.tt) == @as(T, bo.symbol) and priority < bo.priority) {
                 _ = try ps.tokenizer.next(); // skip the peeked token
                 const b = try expectExpression2(ps, pc, bo.priority);
@@ -654,7 +654,7 @@ fn expectTerm(ps: *ParseState, pc: ParseContext) ParseError!*const Expression {
         },
         .kw_feedback => {
             switch (pc) {
-                .module => |pcm| return try createExpr(ps, loc0, .feedback),
+                .module => return try createExpr(ps, loc0, .feedback),
                 else => return fail(ps.tokenizer.ctx, token.source_range, "cannot use feedback outside of module context", .{}),
             }
         },
@@ -749,20 +749,20 @@ pub const ParseResult = struct {
 
 pub fn parse(
     ctx: Context,
-    inner_allocator: *std.mem.Allocator,
+    inner_allocator: std.mem.Allocator,
     dump_parse_out: ?std.io.StreamSource.Writer,
 ) !ParseResult {
     var arena = std.heap.ArenaAllocator.init(inner_allocator);
     errdefer arena.deinit();
 
     var ps: ParseState = .{
-        .arena_allocator = &arena.allocator,
+        .arena_allocator = arena.allocator(),
         .tokenizer = Tokenizer.init(ctx),
-        .globals = std.ArrayList(Global).init(&arena.allocator),
-        .enums = std.ArrayList(BuiltinEnum).init(&arena.allocator),
-        .curves = std.ArrayList(Curve).init(&arena.allocator),
-        .tracks = std.ArrayList(Track).init(&arena.allocator),
-        .modules = std.ArrayList(Module).init(&arena.allocator),
+        .globals = std.ArrayList(Global).init(arena.allocator()),
+        .enums = std.ArrayList(BuiltinEnum).init(arena.allocator()),
+        .curves = std.ArrayList(Curve).init(arena.allocator()),
+        .tracks = std.ArrayList(Track).init(arena.allocator()),
+        .modules = std.ArrayList(Module).init(arena.allocator()),
     };
 
     // add builtins
@@ -799,20 +799,20 @@ pub fn parse(
         }
     }
 
-    const modules = ps.modules.toOwnedSlice();
+    const modules = try ps.modules.toOwnedSlice();
 
     // diagnostic print
     if (dump_parse_out) |out| {
-        for (modules) |module, module_index| {
-            parsePrintModule(out, ctx.source, modules, module_index, module) catch |err| std.debug.warn("parsePrintModule failed: {}\n", .{err});
+        for (modules, 0..) |module, module_index| {
+            parsePrintModule(out, ctx.source, modules, module_index, module) catch |err| std.log.warn("parsePrintModule failed: {}", .{err});
         }
     }
 
     return ParseResult{
         .arena = arena,
-        .globals = ps.globals.toOwnedSlice(),
-        .curves = ps.curves.toOwnedSlice(),
-        .tracks = ps.tracks.toOwnedSlice(),
+        .globals = try ps.globals.toOwnedSlice(),
+        .curves = try ps.curves.toOwnedSlice(),
+        .tracks = try ps.tracks.toOwnedSlice(),
         .modules = modules,
     };
 }

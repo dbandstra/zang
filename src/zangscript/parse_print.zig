@@ -19,6 +19,8 @@ fn State(comptime Writer: type) type {
         }
 
         pub fn printArgValue(self: *@This(), comptime arg_format: []const u8, arg: anytype) !void {
+            _=self;
+            _=arg;
             @compileError("unknown arg_format: \"" ++ arg_format ++ "\"");
         }
 
@@ -47,7 +49,7 @@ fn State(comptime Writer: type) type {
             }
         }
 
-        fn printExpression(self: *@This(), expression: *const Expression, indentation: usize) std.os.WriteError!void {
+        fn printExpression(self: *@This(), expression: *const Expression, indentation: usize) std.posix.WriteError!void {
             try self.indent(indentation);
             switch (expression.inner) {
                 .call => |call| {

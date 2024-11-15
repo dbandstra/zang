@@ -28,7 +28,7 @@ fn printErrorMessage(writer: anytype, maybe_source_range: ?SourceRange, contents
         } else if (ch == '|') {
             // list of enum values
             const values: []const BuiltinEnumValue = args[arg_index];
-            for (values) |value, i| {
+            for (values, 0..) |value, i| {
                 if (i > 0) try writer.writeAll(", ");
                 try writer.writeByte('\'');
                 try writer.writeAll(value.label);

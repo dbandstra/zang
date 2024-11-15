@@ -3,6 +3,8 @@ const zang = @import("zang");
 const note_frequencies = @import("zang-12tet");
 const common = @import("common");
 const c = common.c;
+// You have to manually compile script.txt into scriptgen.zig before building
+// this example.
 const DemoPlayer = @import("scriptgen.zig").DemoPlayer;
 
 pub const AUDIO_FORMAT: zang.AudioFormat = .signed16_lsb;

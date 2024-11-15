@@ -307,7 +307,7 @@ fn State(comptime Writer: type) type {
                     try self.print("self.field{usize}.paint({str}, .{{", .{ call.field_index, span });
                     try self.print("{buffer_dest}}}, .{{", .{call.out});
                     // callee temps
-                    for (call.temps) |n, j| {
+                    for (call.temps, 0..) |n, j| {
                         if (j > 0) {
                             try self.print(", ", .{});
                         }
@@ -315,7 +315,7 @@ fn State(comptime Writer: type) type {
                     }
                     // callee params
                     try self.print("}}, {identifier}, .{{\n", .{note_id_changed});
-                    for (call.args) |arg, j| {
+                    for (call.args, 0..) |arg, j| {
                         const callee_param = callee_module.params[j];
                         try self.print(".{identifier} = ", .{callee_param.name});
                         if (callee_param.param_type == .constant_or_buffer) {
@@ -483,15 +483,7 @@ pub fn generateZig(
         try self.print("pub const {identifier} = {module_name};\n", .{ em.name, em.module_index });
     }
 
-    const num_builtins = blk: {
-        var n: usize = 0;
-        for (builtin_packages) |pkg| {
-            n += pkg.builtins.len;
-        }
-        break :blk n;
-    };
-
-    for (script.curves) |curve, curve_index| {
+    for (script.curves, 0..) |curve, curve_index| {
         try self.print("\n", .{});
         try self.print("const _curve{usize} = [_]zang.CurveNode{{\n", .{curve_index});
         for (curve.points) |point| {
@@ -500,16 +492,16 @@ pub fn generateZig(
         try self.print("}};\n", .{});
     }
 
-    for (script.tracks) |track, track_index| {
+    for (script.tracks, 0..) |track, track_index| {
         try self.print("\n", .{});
         try self.print("const _track{usize} = struct {{\n", .{track_index});
         try self.print("const Params = struct {{\n", .{});
         try self.printParamDecls(track.params, false);
         try self.print("}};\n", .{});
         try self.print("const notes = [_]zang.Notes(Params).SongEvent{{\n", .{});
-        for (track.notes) |note, note_index| {
+        for (track.notes, 0..) |note, note_index| {
             try self.print(".{{ .t = {number_literal}, .note_id = {usize}, .params = .{{", .{ note.t, note_index + 1 });
-            for (track.params) |param, param_index| {
+            for (track.params, 0..) |param, param_index| {
                 if (param_index > 0) {
                     try self.print(",", .{});
                 }
@@ -521,7 +513,7 @@ pub fn generateZig(
         try self.print("}};\n", .{});
     }
 
-    for (script.modules) |module, i| {
+    for (script.modules, 0..) |module, i| {
         const module_result = script.module_results[i];
         const inner = switch (module_result.inner) {
             .builtin => continue,
@@ -543,33 +535,31 @@ pub fn generateZig(
         try self.print("}};\n", .{});
         try self.print("\n", .{});
 
-        for (inner.fields) |field, j| {
-            const field_module = script.modules[field.module_index];
+        for (inner.fields, 0..) |field, j| {
             try self.print("field{usize}: {module_name},\n", .{ j, field.module_index });
         }
-        for (inner.delays) |delay_decl, j| {
+        for (inner.delays, 0..) |delay_decl, j| {
             try self.print("delay{usize}: zang.Delay({usize}),\n", .{ j, delay_decl.num_samples });
         }
-        for (inner.note_trackers) |note_tracker_decl, j| {
+        for (inner.note_trackers, 0..) |note_tracker_decl, j| {
             try self.print("tracker{usize}: zang.Notes(_track{usize}.Params).NoteTracker,\n", .{ j, note_tracker_decl.track_index });
         }
-        for (inner.triggers) |trigger_decl, j| {
+        for (inner.triggers, 0..) |trigger_decl, j| {
             try self.print("trigger{usize}: zang.Trigger(_track{usize}.Params),\n", .{ j, trigger_decl.track_index });
         }
         try self.print("\n", .{});
         try self.print("pub fn init() _module{usize} {{\n", .{i});
         try self.print("return .{{\n", .{});
-        for (inner.fields) |field, j| {
-            const field_module = script.modules[field.module_index];
+        for (inner.fields, 0..) |field, j| {
             try self.print(".field{usize} = {module_name}.init(),\n", .{ j, field.module_index });
         }
-        for (inner.delays) |delay_decl, j| {
+        for (inner.delays, 0..) |delay_decl, j| {
             try self.print(".delay{usize} = zang.Delay({usize}).init(),\n", .{ j, delay_decl.num_samples });
         }
-        for (inner.note_trackers) |note_tracker_decl, j| {
+        for (inner.note_trackers, 0..) |note_tracker_decl, j| {
             try self.print(".tracker{usize} = zang.Notes(_track{usize}.Params).NoteTracker.init(&_track{usize}.notes),\n", .{ j, note_tracker_decl.track_index, note_tracker_decl.track_index });
         }
-        for (inner.triggers) |trigger_decl, j| {
+        for (inner.triggers, 0..) |trigger_decl, j| {
             try self.print(".trigger{usize} = zang.Trigger(_track{usize}.Params).init(),\n", .{ j, trigger_decl.track_index });
         }
         try self.print("}};\n", .{});
