@@ -47,11 +47,11 @@ pub fn main() !void {
     });
 
     const total = NUM_SECONDS * example.AUDIO_SAMPLE_RATE;
-    const num_iterations = (total + example.AUDIO_BUFFER_SIZE - 1) / example.AUDIO_BUFFER_SIZE;
+    // const num_iterations = (total + example.AUDIO_BUFFER_SIZE - 1) / example.AUDIO_BUFFER_SIZE;
 
-    var progress: std.Progress = .{};
-    const progress_node = progress.start("rendering audio", num_iterations);
-    defer progress_node.end();
+    // var progress: std.Progress = .{};
+    // const progress_node = progress.start("rendering audio", num_iterations);
+    // defer progress_node.end();
 
     var start: usize = 0;
     var bytes_written: usize = 0;
@@ -89,7 +89,7 @@ pub fn main() !void {
         start += len;
         bytes_written += len * bytes_per_sample;
 
-        progress_node.completeOne();
+        // progress_node.completeOne();
     }
 
     try wav.patchHeader(file.writer(), file.seekableStream(), bytes_written);
