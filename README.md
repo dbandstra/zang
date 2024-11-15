@@ -1,5 +1,5 @@
 # zang
-Audio library written in [Zig](https://ziglang.org/) 0.7.0.
+Audio library which should work in [Zig](https://ziglang.org/) 0.12 or 0.13.
 
 This library provides functions to "paint" audio (generators and effects) into buffers. (How the buffers get sent to the audio device is out of the scope of the library, but can be seen in the provided examples.)
 
@@ -10,9 +10,7 @@ The examples (except `write_wav`) use [SDL2](https://www.libsdl.org/), so make s
 
 Running the examples (again, except `write_wav`) will display a window with some information, including a waveform and FFT spectrum display. Press F1 for built-in help information.
 
-Before building the examples, you will need to initialize git submodules, as some of the examples use an external dependency ([zig-wav](https://git.sr.ht/~dbandstra/zig-wav)).
-
-*Note*: You may have to clear the `zig-cache` folder in between building different examples. This bug will be fixed in Zig 0.7.1.
+Before building the examples, you will need to initialize git submodules, as some of the examples use an external dependency ([zig-wav](https://github.com/dbandstra/zig-wav)).
 
 ```
 git submodule init
@@ -86,12 +84,15 @@ My goals for the core library:
 This is WIP. It's a DSL that can be compiled into Zig code. Writing Zangscript will be a lot terser and more expressive than writing Zig code by hand using the zang API. It's totally optional, the core zang library has no dependency on it. I'll document it more when I make more progress. You can try it out by running:
 
 ```
-zig build zangc
-zig-cache/zangc -o examples/scriptgen.zig examples/script.txt
+zig build
+zig-out/zangc -o examples/scriptgen.zig examples/script.txt
 zig build script  # build and launch the player, using examples/scriptgen.zig
 ```
 
 The player application lets you play notes on the keyboard. For this to work, the script must contain a module called `DemoModule` (params are `freq: cob` and `note_on: boolean`).
+
+<!--
+(commented this out because it hasn't worked since zig 0.7.1)
 
 Scripts can also be evaluated at runtime. The result should be the same as when compiling to Zig, but you trade efficiency for the ability to reload changes to the script on the fly.
 
@@ -111,3 +112,4 @@ ZANG_LISTEN_PORT=8888 zang build script_runtime
 # then, in another terminal (bash only):
 echo -n reload > /dev/udp/localhost/8888
 ```
+-->
